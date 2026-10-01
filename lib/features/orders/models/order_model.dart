@@ -11,7 +11,7 @@ enum OrderStatus {
   String get label {
     switch (this) {
       case OrderStatus.newOrder:
-        return 'New';
+        return 'Booked (New)';
       case OrderStatus.pickedUp:
         return 'Picked Up';
       case OrderStatus.inTransit:

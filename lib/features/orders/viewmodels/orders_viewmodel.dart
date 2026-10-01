@@ -6,12 +6,14 @@ class OrdersState {
   final bool isLoading;
   final OrderStatus? selectedFilter;
   final String searchQuery;
+  final bool isTableView;
 
   const OrdersState({
     required this.orders,
     this.isLoading = false,
     this.selectedFilter,
     this.searchQuery = '',
+    this.isTableView = true, // Default to Table View as requested by Boss
   });
 
   List<OrderModel> get filteredOrders {
@@ -27,6 +29,16 @@ class OrdersState {
     }).toList();
   }
 
+  // Groups the filtered orders by Date (e.g. '01-08-2026', '02-08-2026')
+  Map<String, List<OrderModel>> get groupedOrdersByDate {
+    final map = <String, List<OrderModel>>{};
+    for (final order in filteredOrders) {
+      final dateKey = order.orderDate.isNotEmpty ? order.orderDate : 'Unscheduled';
+      map.putIfAbsent(dateKey, () => []).add(order);
+    }
+    return map;
+  }
+
   int get totalCount => orders.length;
   int get deliveredCount => orders.where((o) => o.status == OrderStatus.delivered).length;
   int get failedCount => orders.where((o) => o.status == OrderStatus.failed).length;
@@ -37,22 +49,25 @@ class OrdersState {
     bool? isLoading,
     OrderStatus? Function()? selectedFilter,
     String? searchQuery,
+    bool? isTableView,
   }) {
     return OrdersState(
       orders: orders ?? this.orders,
       isLoading: isLoading ?? this.isLoading,
       selectedFilter: selectedFilter != null ? selectedFilter() : this.selectedFilter,
       searchQuery: searchQuery ?? this.searchQuery,
+      isTableView: isTableView ?? this.isTableView,
     );
   }
 }
 
 class OrdersViewModel extends StateNotifier<OrdersState> {
-  OrdersViewModel() : super(OrdersState(orders: _initialExcelOrders));
+  OrdersViewModel() : super(const OrdersState(orders: _initialExcelOrders));
 
   // Initial orders populated directly from User's Excel sheet reference
-  static final List<OrderModel> _initialExcelOrders = [
-    const OrderModel(
+  static const List<OrderModel> _initialExcelOrders = [
+    // --- Date: 01-08-2026 ---
+    OrderModel(
       sNo: 2,
       deliveryDate: '03-08-2026',
       orderDate: '01-08-2026',
@@ -63,7 +78,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '1 Box',
       status: OrderStatus.newOrder,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 17,
       deliveryDate: '01-08-2026',
       orderDate: '01-08-2026',
@@ -74,7 +89,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '7 Box',
       status: OrderStatus.inTransit,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 11,
       deliveryDate: '03-08-2026',
       orderDate: '01-08-2026',
@@ -85,7 +100,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '3 Box',
       status: OrderStatus.pickedUp,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 7,
       deliveryDate: '08-08-2026',
       orderDate: '01-08-2026',
@@ -96,7 +111,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '1 Box',
       status: OrderStatus.newOrder,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 9,
       deliveryDate: '08-08-2026',
       orderDate: '01-08-2026',
@@ -106,9 +121,8 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       brand: 'BBW',
       noOfBoxes: '6 Box',
       status: OrderStatus.delivered,
-      completedAt: null,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 8,
       deliveryDate: '08-08-2026',
       orderDate: '01-08-2026',
@@ -120,7 +134,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       status: OrderStatus.failed,
       failedReason: 'Store closed by mall authority',
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 10,
       deliveryDate: '08-08-2026',
       orderDate: '01-08-2026',
@@ -131,7 +145,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '4 Box',
       status: OrderStatus.newOrder,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 1,
       deliveryDate: '08-08-2026',
       orderDate: '01-08-2026',
@@ -142,7 +156,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '2 Box',
       status: OrderStatus.inTransit,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 16,
       deliveryDate: '03-08-2026',
       orderDate: '01-08-2026',
@@ -153,7 +167,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '28 Box',
       status: OrderStatus.newOrder,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 13,
       deliveryDate: '04-08-2026',
       orderDate: '01-08-2026',
@@ -164,7 +178,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '5 Box',
       status: OrderStatus.pickedUp,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 4,
       deliveryDate: '03-08-2026',
       orderDate: '01-08-2026',
@@ -175,7 +189,7 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       noOfBoxes: '1 Box',
       status: OrderStatus.newOrder,
     ),
-    const OrderModel(
+    OrderModel(
       sNo: 15,
       deliveryDate: '01-08-2026',
       orderDate: '01-08-2026',
@@ -184,6 +198,85 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
       to: 'Felix Plaza',
       brand: 'BBW',
       noOfBoxes: '37 Box',
+      status: OrderStatus.newOrder,
+    ),
+    OrderModel(
+      sNo: 12,
+      deliveryDate: '03-08-2026',
+      orderDate: '01-08-2026',
+      docketNo: '291881',
+      from: 'LF Logistics (Farukh Nagar)',
+      to: 'Lajpat Nagar',
+      brand: 'Crocs',
+      noOfBoxes: '10 Box',
+      status: OrderStatus.pickedUp,
+    ),
+    OrderModel(
+      sNo: 6,
+      deliveryDate: '04-08-2026',
+      orderDate: '01-08-2026',
+      docketNo: '266911',
+      from: 'Dlf Promenade',
+      to: 'LF Logistics (Farukh Nagar)',
+      brand: 'BHPC',
+      noOfBoxes: '54 Box',
+      status: OrderStatus.inTransit,
+    ),
+    OrderModel(
+      sNo: 18,
+      deliveryDate: '04-08-2026',
+      orderDate: '01-08-2026',
+      docketNo: '293863',
+      from: 'Elegante Mall',
+      to: 'LF Logistics (Farukh Nagar)',
+      brand: 'BHPC',
+      noOfBoxes: '25 Box',
+      status: OrderStatus.newOrder,
+    ),
+    OrderModel(
+      sNo: 5,
+      deliveryDate: '03-08-2026',
+      orderDate: '01-08-2026',
+      docketNo: '266910',
+      from: 'Pacific Mall',
+      to: 'Mall Of India',
+      brand: 'CK',
+      noOfBoxes: '1 Box',
+      status: OrderStatus.delivered,
+    ),
+
+    // --- Date: 02-08-2026 ---
+    OrderModel(
+      sNo: 23,
+      deliveryDate: '03-08-2026',
+      orderDate: '02-08-2026',
+      docketNo: '291895',
+      from: 'LF Logistics (Farukh Nagar)',
+      to: 'Ambience GGN',
+      brand: 'BBW',
+      noOfBoxes: '10 Box',
+      status: OrderStatus.newOrder,
+    ),
+    OrderModel(
+      sNo: 29,
+      deliveryDate: '03-08-2026',
+      orderDate: '02-08-2026',
+      docketNo: '292483',
+      from: 'LF Logistics (Farukh Nagar)',
+      to: 'Dlf Promenade',
+      brand: 'BBW',
+      noOfBoxes: '9 Box',
+      status: OrderStatus.delivered,
+    ),
+    OrderModel(
+      sNo: 19,
+      deliveryDate: '04-08-2026',
+      orderDate: '02-08-2026',
+      docketNo: '291888',
+      from: 'LF Logistics (Farukh Nagar)',
+      to: 'Elegante Mall',
+      brand: 'Crocs',
+      noOfBoxes: '25 Box',
       status: OrderStatus.newOrder,
     ),
   ];
@@ -204,6 +297,22 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
           invoiceImagePath: invoiceImagePath,
           failedReason: null,
           completedAt: DateTime.now(),
+        );
+      }
+      return order;
+    }).toList();
+
+    state = state.copyWith(orders: updatedList);
+  }
+
+  void updateOrderStatus(String docketNo, OrderStatus newStatus) {
+    final updatedList = state.orders.map((order) {
+      if (order.docketNo == docketNo) {
+        return order.copyWith(
+          status: newStatus,
+          completedAt: (newStatus == OrderStatus.delivered || newStatus == OrderStatus.failed)
+              ? DateTime.now()
+              : null,
         );
       }
       return order;
@@ -235,6 +344,10 @@ class OrdersViewModel extends StateNotifier<OrdersState> {
 
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
+  }
+
+  void toggleViewMode() {
+    state = state.copyWith(isTableView: !state.isTableView);
   }
 
   Future<void> refresh() async {

@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // JMD Official Brand Colors (from Logo)
-  static const Color primaryNavy = Color(0xFF0C3E7B);
-  static const Color primaryDark = Color(0xFF07264F);
-  static const Color primaryLight = Color(0xFF1E5BB0);
-  static const Color brandRed = Color(0xFFE31E24);
-  static const Color brandRedDark = Color(0xFFB81318);
+  // JMD Official Brand Colors
+  static const Color primaryNavy = Color(0xFF041B45);
+  static const Color primaryDark = Color(0xFF020E24);
+  static const Color primaryLight = Color(0xFF0A2E6E);
+  static const Color brandRed = Color(0xFFF1212E);
+  static const Color brandRedDark = Color(0xFFC7121E);
 
   // Background & Surfaces
   static const Color scaffoldBg = Color(0xFFF8FAFC);

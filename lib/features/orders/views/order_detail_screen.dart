@@ -38,7 +38,7 @@ class OrderDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
       appBar: AppBar(
-        title: Text('Docket #${order.docketNo}'),
+        title: Text('Docket: ${order.docketNo}'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -111,15 +111,15 @@ class OrderDetailScreen extends ConsumerWidget {
         child: SafeArea(
           top: false,
           bottom: true,
-          // 24dp minimum bottom clearance so buttons sit well above physical/virtual navbars
-          minimum: const EdgeInsets.only(bottom: 24),
+          // 34dp minimum bottom clearance so buttons float well above physical/virtual navbars
+          minimum: const EdgeInsets.only(bottom: 34),
           child: Align(
             heightFactor: 1.0,
             alignment: Alignment.center,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 650),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Row(
                   children: [
                     // FAILED Action Button
@@ -184,6 +184,7 @@ class OrderDetailScreen extends ConsumerWidget {
                           onPressed: () {
                             DeliveryHelper.startDeliveryFlow(
                               context: context,
+                              docketNo: order.docketNo,
                               onConfirmed: (imagePath) {
                                 ordersVM.markAsDelivered(order.docketNo, imagePath);
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -309,7 +310,7 @@ class OrderDetailScreen extends ConsumerWidget {
             const Divider(color: AppColors.divider, height: 1),
             const SizedBox(height: 12),
 
-            _buildDetailRow('S. No.', '#${order.sNo}'),
+            _buildDetailRow('S. No.', '${order.sNo}'),
             _buildDetailRow('Docket No.', order.docketNo, isBold: true),
             _buildDetailRow('Brand', order.brand, isTag: true),
             _buildDetailRow('No. of Boxes', order.noOfBoxes),

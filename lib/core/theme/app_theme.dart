@@ -46,17 +46,18 @@ class AppTheme {
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.primaryNavy,
+        backgroundColor: AppColors.primaryNavy,
+        foregroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: Colors.black.withAlpha(25),
+        shadowColor: Colors.black.withAlpha(40),
         centerTitle: false,
         titleTextStyle: GoogleFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w700,
-          color: AppColors.primaryNavy,
+          color: Colors.white,
         ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
