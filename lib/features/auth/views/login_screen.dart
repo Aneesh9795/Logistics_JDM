@@ -14,13 +14,13 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController(text: 'DP-8801');
-  final _passwordController = TextEditingController(text: 'partner123');
+  final _mobileController = TextEditingController(text: '7868765433');
+  final _passwordController = TextEditingController(text: 'aman123');
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _mobileController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -29,7 +29,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final success = await ref.read(authViewModelProvider.notifier).login(
-          _usernameController.text,
+          _mobileController.text,
           _passwordController.text,
         );
 
@@ -43,6 +43,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         SnackBar(
           content: Text(error),
           backgroundColor: AppColors.brandRed,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -107,9 +108,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   const SizedBox(height: 32),
 
-                  // Delivery Partner ID / Username Field
+                  // Registered Mobile Field
                   const Text(
-                    'Delivery Partner ID / Username',
+                    'Mobile Number',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -118,15 +119,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextFormField(
-                    controller: _usernameController,
+                    controller: _mobileController,
+                    keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
-                      hintText: 'e.g. DP-8801',
-                      prefixIcon: Icon(Icons.person_outline, color: AppColors.primaryNavy),
+                      hintText: 'e.g. 7868765433',
+                      prefixIcon: Icon(Icons.phone_android_rounded, color: AppColors.primaryNavy),
                     ),
                     textInputAction: TextInputAction.next,
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
-                        return 'Please enter your Partner ID / Username';
+                        return 'Please enter registered mobile number';
+                      }
+                      if (val.trim().length < 10) {
+                        return 'Please enter a valid mobile number';
                       }
                       return null;
                     },

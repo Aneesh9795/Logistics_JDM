@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/config/config.dart';
+import '../data/repositories/auth_repository.dart';
 import '../models/partner_model.dart';
-import '../../../core/constants/app_constants.dart';
 
 class AuthState {
   final bool isLoading;
@@ -31,59 +32,91 @@ class AuthState {
 }
 
 class AuthViewModel extends StateNotifier<AuthState> {
-  AuthViewModel() : super(const AuthState());
+  final AuthRepository _authRepository;
 
+  AuthViewModel(this._authRepository) : super(const AuthState());
+
+  /// Check saved auth status on splash screen
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
-    // Simulate brief splash delay
-    await Future.delayed(const Duration(milliseconds: 1500));
-    // Default: false so partner sees clean login flow, or already logged in if saved
-    state = state.copyWith(
-      isLoading: false,
-      isAuthenticated: false,
-    );
-  }
 
-  Future<bool> login(String username, String password) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final isAuth = _authRepository.isAuthenticated();
+      final partner = _authRepository.getCachedPartner();
 
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    if (username.trim().isEmpty || password.trim().isEmpty) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Please enter Delivery Partner ID and Password',
+        isAuthenticated: isAuth,
+        partner: partner,
+      );
+    } catch (_) {
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: false,
+        partner: null,
+      );
+    }
+  }
+
+  /// Perform live login with mobile number and password
+  Future<bool> login(String mobile, String password) async {
+    final cleanMobile = mobile.trim();
+    final cleanPassword = password.trim();
+
+    if (cleanMobile.isEmpty || cleanPassword.isEmpty) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Please enter registered Mobile Number and Password',
       );
       return false;
     }
 
-    // Dynamic mock partner
-    final partner = PartnerModel(
-      id: username.trim().toUpperCase(),
-      name: AppConstants.defaultPartnerName,
-      username: username.trim(),
-      phone: '+91 98765 43210',
-      hubName: AppConstants.defaultPartnerZone,
-    );
+    state = state.copyWith(isLoading: true, errorMessage: null);
 
-    state = state.copyWith(
-      isLoading: false,
-      isAuthenticated: true,
-      partner: partner,
-      errorMessage: null,
-    );
-    return true;
+    try {
+      final response = await _authRepository.login(
+        mobile: cleanMobile,
+        password: cleanPassword,
+      );
+
+      state = state.copyWith(
+        isLoading: false,
+        isAuthenticated: true,
+        partner: response.deliveryBoy,
+        errorMessage: null,
+      );
+      return true;
+    } on ApiException catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.message,
+      );
+      return false;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'An unexpected error occurred: ${e.toString()}',
+      );
+      return false;
+    }
   }
 
-  void logout() {
-    state = const AuthState(
-      isLoading: false,
-      isAuthenticated: false,
-      partner: null,
-    );
+  /// Clear session and logout
+  Future<void> logout() async {
+    try {
+      await _authRepository.logout();
+    } finally {
+      state = const AuthState(
+        isLoading: false,
+        isAuthenticated: false,
+        partner: null,
+        errorMessage: null,
+      );
+    }
   }
 }
 
 final authViewModelProvider = StateNotifierProvider<AuthViewModel, AuthState>((ref) {
-  return AuthViewModel();
+  final authRepository = ref.watch(authRepositoryProvider);
+  return AuthViewModel(authRepository);
 });
