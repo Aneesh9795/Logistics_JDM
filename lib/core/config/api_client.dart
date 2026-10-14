@@ -1,142 +1,111 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/storage_service.dart';
-import 'app_config.dart';
 import 'api_endpoints.dart';
-import 'api_exceptions.dart';
-import 'interceptors/auth_interceptor.dart';
-import 'interceptors/logging_interceptor.dart';
 
 class ApiClient {
-  late final Dio _dio;
+  final StorageService _storageService;
+  late final Dio dio;
 
-  ApiClient({
-    required StorageService storageService,
-    void Function()? onUnauthorized,
-  }) {
-    _dio = Dio(
+  ApiClient(this._storageService) {
+    dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: AppConfig.connectTimeout,
-        receiveTimeout: AppConfig.receiveTimeout,
-        sendTimeout: AppConfig.sendTimeout,
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(seconds: 20),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        responseType: ResponseType.json,
       ),
     );
 
-    _dio.interceptors.addAll([
-      AuthInterceptor(
-        storageService: storageService,
-        onUnauthorized: onUnauthorized,
+    // Attach token automatically to all requests
+    dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          final token = _storageService.getAuthToken();
+          if (token != null && token.isNotEmpty) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
+          if (kDebugMode) {
+            print('🌐 [API REQ] ${options.method} -> ${options.uri}');
+            print('📦 [API DATA SENT] ${options.data}');
+          }
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          if (kDebugMode) {
+            print('✅ [API RES] ${response.statusCode} <- ${response.requestOptions.uri}');
+          }
+          return handler.next(response);
+        },
+        onError: (DioException error, handler) {
+          if (kDebugMode) {
+            print('❌ [API ERR] ${error.response?.statusCode} <- ${error.requestOptions.uri}');
+            print('❌ [API ERR RESPONSE FROM SERVER] ${error.response?.data}');
+          }
+          return handler.next(error);
+        },
       ),
-      LoggingInterceptor(),
-    ]);
+    );
   }
 
-  // Raw Dio access if required for advanced cases
-  Dio get dio => _dio;
-
-  // --- GET Request ---
-  Future<dynamic> get(
-    String path, {
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-    CancelToken? cancelToken,
-  }) async {
+  // --- GET Method ---
+  Future<dynamic> get(String endpoint, {Map<String, dynamic>? queryParameters}) async {
     try {
-      final response = await _dio.get(
-        path,
-        queryParameters: queryParameters,
-        options: options,
-        cancelToken: cancelToken,
-      );
+      final response = await dio.get(endpoint, queryParameters: queryParameters);
       return response.data;
     } on DioException catch (e) {
-      throw ApiException.fromDioException(e);
-    } catch (e) {
-      throw ApiException(message: e.toString());
+      throw _parseError(e);
     }
   }
 
-  // --- POST Request ---
-  Future<dynamic> post(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-    CancelToken? cancelToken,
-  }) async {
+  // --- POST Method ---
+  Future<dynamic> post(String endpoint, {dynamic data}) async {
     try {
-      final response = await _dio.post(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-        cancelToken: cancelToken,
-      );
+      final response = await dio.post(endpoint, data: data);
       return response.data;
     } on DioException catch (e) {
-      throw ApiException.fromDioException(e);
-    } catch (e) {
-      throw ApiException(message: e.toString());
+      throw _parseError(e);
     }
   }
 
-  // --- PUT Request ---
-  Future<dynamic> put(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-    CancelToken? cancelToken,
-  }) async {
-    try {
-      final response = await _dio.put(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-        cancelToken: cancelToken,
-      );
-      return response.data;
-    } on DioException catch (e) {
-      throw ApiException.fromDioException(e);
-    } catch (e) {
-      throw ApiException(message: e.toString());
-    }
-  }
+  // Helper to extract clean error message from backend
+  String _parseError(DioException e) {
+    if (e.response?.data != null && e.response?.data is Map) {
+      final data = e.response!.data as Map;
 
-  // --- DELETE Request ---
-  Future<dynamic> delete(
-    String path, {
-    dynamic data,
-    Map<String, dynamic>? queryParameters,
-    Options? options,
-    CancelToken? cancelToken,
-  }) async {
-    try {
-      final response = await _dio.delete(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-        cancelToken: cancelToken,
-      );
-      return response.data;
-    } on DioException catch (e) {
-      throw ApiException.fromDioException(e);
-    } catch (e) {
-      throw ApiException(message: e.toString());
+      // Check for validation errors { errors: { field: ["error"] } }
+      if (data['errors'] is Map && (data['errors'] as Map).isNotEmpty) {
+        final errors = data['errors'] as Map;
+        final firstError = errors.values.first;
+        if (firstError is List && firstError.isNotEmpty) {
+          return firstError.first.toString();
+        }
+      }
+
+      // Check for message { message: "error text" }
+      if (data['message'] != null) {
+        return data['message'].toString();
+      }
     }
+
+    if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+      return 'Connection timed out. Please try again.';
+    }
+
+    if (e.type == DioExceptionType.connectionError) {
+      return 'No internet connection. Please check your network.';
+    }
+
+    return e.message ?? 'Something went wrong. Please try again.';
   }
 }
 
 /// Provider for ApiClient
 final apiClientProvider = Provider<ApiClient>((ref) {
   final storageService = ref.watch(storageServiceProvider);
-  return ApiClient(storageService: storageService);
+  return ApiClient(storageService);
 });

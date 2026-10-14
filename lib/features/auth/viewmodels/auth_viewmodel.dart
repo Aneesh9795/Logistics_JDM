@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/config/config.dart';
-import '../data/repositories/auth_repository.dart';
+import '../../../core/config/api_client.dart';
+import '../../../core/config/api_endpoints.dart';
+import '../../../core/services/storage_service.dart';
 import '../models/partner_model.dart';
 
 class AuthState {
@@ -32,33 +33,31 @@ class AuthState {
 }
 
 class AuthViewModel extends StateNotifier<AuthState> {
-  final AuthRepository _authRepository;
+  final ApiClient _apiClient;
+  final StorageService _storageService;
 
-  AuthViewModel(this._authRepository) : super(const AuthState());
+  AuthViewModel({
+    required ApiClient apiClient,
+    required StorageService storageService,
+  })  : _apiClient = apiClient,
+        _storageService = storageService,
+        super(const AuthState());
 
-  /// Check saved auth status on splash screen
+  /// Check if user is already logged in on app startup
   Future<void> checkAuthStatus() async {
     state = state.copyWith(isLoading: true);
 
-    try {
-      final isAuth = _authRepository.isAuthenticated();
-      final partner = _authRepository.getCachedPartner();
+    final hasToken = _storageService.hasAuthToken();
+    final cachedPartner = _storageService.getPartner();
 
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: isAuth,
-        partner: partner,
-      );
-    } catch (_) {
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: false,
-        partner: null,
-      );
-    }
+    state = state.copyWith(
+      isLoading: false,
+      isAuthenticated: hasToken && cachedPartner != null,
+      partner: cachedPartner,
+    );
   }
 
-  /// Perform live login with mobile number and password
+  /// Live login with Mobile Number and Password
   Future<bool> login(String mobile, String password) async {
     final cleanMobile = mobile.trim();
     final cleanPassword = password.trim();
@@ -74,49 +73,66 @@ class AuthViewModel extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      final response = await _authRepository.login(
-        mobile: cleanMobile,
-        password: cleanPassword,
+      final response = await _apiClient.post(
+        ApiEndpoints.login,
+        data: {
+          'mobile': cleanMobile,
+          'password': cleanPassword,
+        },
       );
+
+      // Parse token & partner data from API response
+      final token = response['token']?.toString() ?? '';
+      final partnerData = response['delivery_boy'] as Map<String, dynamic>? ?? {};
+      final partner = PartnerModel.fromJson(partnerData);
+
+      // Save token and partner data in local storage
+      if (token.isNotEmpty) {
+        await _storageService.saveAuthToken(token);
+      }
+      await _storageService.savePartner(partner);
+      await _storageService.setLoggedIn(true);
 
       state = state.copyWith(
         isLoading: false,
         isAuthenticated: true,
-        partner: response.deliveryBoy,
+        partner: partner,
         errorMessage: null,
       );
       return true;
-    } on ApiException catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.message,
-      );
-      return false;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'An unexpected error occurred: ${e.toString()}',
+        errorMessage: e.toString(),
       );
       return false;
     }
   }
 
-  /// Clear session and logout
+  /// Logout and clear saved data
   Future<void> logout() async {
     try {
-      await _authRepository.logout();
-    } finally {
-      state = const AuthState(
-        isLoading: false,
-        isAuthenticated: false,
-        partner: null,
-        errorMessage: null,
-      );
-    }
+      await _apiClient.post(ApiEndpoints.logout);
+    } catch (_) {}
+
+    await _storageService.clearAll();
+
+    state = const AuthState(
+      isLoading: false,
+      isAuthenticated: false,
+      partner: null,
+      errorMessage: null,
+    );
   }
 }
 
+/// Provider for AuthViewModel
 final authViewModelProvider = StateNotifierProvider<AuthViewModel, AuthState>((ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
-  return AuthViewModel(authRepository);
+  final apiClient = ref.watch(apiClientProvider);
+  final storageService = ref.watch(storageServiceProvider);
+
+  return AuthViewModel(
+    apiClient: apiClient,
+    storageService: storageService,
+  );
 });

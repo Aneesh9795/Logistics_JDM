@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/constants/app_constants.dart';
 import '../viewmodels/auth_viewmodel.dart';
 
@@ -14,8 +14,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _mobileController = TextEditingController(text: '7868765433');
-  final _passwordController = TextEditingController(text: 'aman123');
+  final _mobileController = TextEditingController();
+  final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
@@ -210,33 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
-
-                  // Helper hint for testing
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryNavy.withAlpha(10),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.primaryNavy.withAlpha(30)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 18, color: AppColors.primaryNavy),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Demo Partner ID & Password are pre-filled for quick testing.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.primaryNavy,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
