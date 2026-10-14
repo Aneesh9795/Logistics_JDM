@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
-import '../viewmodels/auth_viewmodel.dart';
+import '../core/constants/app_constants.dart';
+import '../core/theme/app_colors.dart';
+import '../providers/auth_provider.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class LoginPage extends ConsumerStatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _mobileController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -28,7 +28,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(authViewModelProvider.notifier).login(
+    final success = await ref.read(authProvider.notifier).login(
           _mobileController.text,
           _passwordController.text,
         );
@@ -38,7 +38,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (success) {
       context.go('/home');
     } else {
-      final error = ref.read(authViewModelProvider).errorMessage ?? 'Login failed';
+      final error = ref.read(authProvider).errorMessage ?? 'Login failed';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error),
@@ -51,7 +51,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authViewModelProvider);
+    final authState = ref.watch(authProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,

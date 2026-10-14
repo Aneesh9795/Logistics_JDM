@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
-import '../viewmodels/auth_viewmodel.dart';
+import '../core/constants/app_constants.dart';
+import '../core/theme/app_colors.dart';
+import '../providers/auth_provider.dart';
 
-class SplashScreen extends ConsumerStatefulWidget {
-  const SplashScreen({super.key});
+class SplashPage extends ConsumerStatefulWidget {
+  const SplashPage({super.key});
 
   @override
-  ConsumerState<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashPageState extends ConsumerState<SplashPage> with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -41,10 +41,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   }
 
   Future<void> _checkAuth() async {
-    await ref.read(authViewModelProvider.notifier).checkAuthStatus();
+    await ref.read(authProvider.notifier).checkAuthStatus();
     if (!mounted) return;
 
-    final authState = ref.read(authViewModelProvider);
+    final authState = ref.read(authProvider);
     if (authState.isAuthenticated) {
       context.go('/home');
     } else {

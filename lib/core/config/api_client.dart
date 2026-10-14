@@ -1,14 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/storage_service.dart';
+import '../storage/token_storage.dart';
 import 'api_endpoints.dart';
 
 class ApiClient {
-  final StorageService _storageService;
+  final TokenStorage _tokenStorage;
   late final Dio dio;
 
-  ApiClient(this._storageService) {
+  ApiClient(this._tokenStorage) {
     dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
@@ -25,7 +25,7 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          final token = _storageService.getAuthToken();
+          final token = _tokenStorage.getToken();
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -106,6 +106,6 @@ class ApiClient {
 
 /// Provider for ApiClient
 final apiClientProvider = Provider<ApiClient>((ref) {
-  final storageService = ref.watch(storageServiceProvider);
-  return ApiClient(storageService);
+  final tokenStorage = ref.watch(tokenStorageProvider);
+  return ApiClient(tokenStorage);
 });

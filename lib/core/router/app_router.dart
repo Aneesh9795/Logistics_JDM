@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../features/auth/views/login_screen.dart';
-import '../../features/auth/views/splash_screen.dart';
-import '../../features/orders/views/home_screen.dart';
-import '../../features/orders/views/order_detail_screen.dart';
+import '../../pages/login_page.dart';
+import '../../pages/splash_page.dart';
+import '../../pages/home_page.dart';
+import '../../pages/order_detail_page.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -12,21 +12,21 @@ final appRouter = GoRouter(
       path: '/',
       name: 'splash',
       builder: (BuildContext context, GoRouterState state) {
-        return const SplashScreen();
+        return const SplashPage();
       },
     ),
     GoRoute(
       path: '/login',
       name: 'login',
       builder: (BuildContext context, GoRouterState state) {
-        return const LoginScreen();
+        return const LoginPage();
       },
     ),
     GoRoute(
       path: '/home',
       name: 'home',
       builder: (BuildContext context, GoRouterState state) {
-        return const HomeScreen();
+        return const HomePage();
       },
     ),
     GoRoute(
@@ -34,7 +34,7 @@ final appRouter = GoRouter(
       name: 'orderDetail',
       builder: (BuildContext context, GoRouterState state) {
         final docketNo = state.pathParameters['docketNo'] ?? '';
-        return OrderDetailScreen(docketNo: docketNo);
+        return OrderDetailPage(docketNo: docketNo);
       },
     ),
   ],

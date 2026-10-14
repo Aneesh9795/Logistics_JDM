@@ -3,17 +3,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/app_colors.dart';
+import '../core/theme/app_colors.dart';
 import '../models/order_model.dart';
-import '../viewmodels/orders_viewmodel.dart';
-import '../widgets/delivery_confirm_dialog.dart';
-import '../widgets/failed_reason_sheet.dart';
-import '../widgets/status_badge.dart';
+import '../providers/orders_provider.dart';
+import 'widgets/delivery_confirm_dialog.dart';
+import 'widgets/failed_reason_sheet.dart';
+import 'widgets/status_badge.dart';
 
-class OrderDetailScreen extends ConsumerWidget {
+class OrderDetailPage extends ConsumerWidget {
   final String docketNo;
 
-  const OrderDetailScreen({
+  const OrderDetailPage({
     super.key,
     required this.docketNo,
   });
@@ -21,7 +21,7 @@ class OrderDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final order = ref.watch(singleOrderProvider(docketNo));
-    final ordersVM = ref.read(ordersViewModelProvider.notifier);
+    final ordersVM = ref.read(ordersProvider.notifier);
 
     if (order == null) {
       return Scaffold(

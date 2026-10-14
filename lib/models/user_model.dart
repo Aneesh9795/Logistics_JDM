@@ -1,11 +1,11 @@
-class PartnerModel {
+class UserModel {
   final String id;
   final String name;
   final String mobile;
   final bool status;
   final String hubName;
 
-  const PartnerModel({
+  const UserModel({
     required this.id,
     required this.name,
     required this.mobile,
@@ -13,15 +13,15 @@ class PartnerModel {
     this.hubName = 'Main Hub',
   });
 
-  // Backward compatible getters
+  // Helper getters for convenience
   String get username => mobile;
   String get phone => mobile;
 
-  factory PartnerModel.fromJson(Map<String, dynamic> json) {
-    return PartnerModel(
+  factory UserModel.fromJson(Map<String, dynamic> json) {
+    return UserModel(
       id: json['id']?.toString() ?? '',
       name: (json['name'] as String? ?? '').trim(),
-      mobile: (json['mobile'] ?? json['phone'] ?? json['username'] ?? '').toString().trim(),
+      mobile: (json['mobile'] ?? json['phone'] ?? '').toString().trim(),
       status: json['status'] is bool
           ? json['status'] as bool
           : (json['status'] == 1 || json['status'] == '1'),

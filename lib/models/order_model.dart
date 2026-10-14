@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
+import '../core/theme/app_colors.dart';
 
 enum OrderStatus {
   newOrder,
@@ -80,7 +80,7 @@ enum OrderStatus {
 }
 
 class OrderModel {
-  final int sNo; // Column A only
+  final int sNo; // Column A
   final String deliveryDate; // Column B
   final String orderDate; // Column D
   final String docketNo; // Column E

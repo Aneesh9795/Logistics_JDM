@@ -1,49 +1,49 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../features/auth/models/partner_model.dart';
+import '../../models/user_model.dart';
 
-class StorageService {
+class TokenStorage {
   final SharedPreferences _prefs;
 
-  StorageService(this._prefs);
+  TokenStorage(this._prefs);
 
   static const String _keyToken = 'auth_token';
-  static const String _keyPartner = 'partner_profile';
+  static const String _keyUser = 'auth_user';
   static const String _keyIsLoggedIn = 'is_logged_in';
 
   // --- Auth Token ---
-  Future<bool> saveAuthToken(String token) async {
+  Future<bool> saveToken(String token) async {
     return await _prefs.setString(_keyToken, token);
   }
 
-  String? getAuthToken() {
+  String? getToken() {
     return _prefs.getString(_keyToken);
   }
 
-  bool hasAuthToken() {
-    final token = getAuthToken();
+  bool hasToken() {
+    final token = getToken();
     return token != null && token.isNotEmpty;
   }
 
-  // --- Partner Data ---
-  Future<bool> savePartner(PartnerModel partner) async {
-    final jsonStr = jsonEncode(partner.toJson());
-    return await _prefs.setString(_keyPartner, jsonStr);
+  // --- User Profile ---
+  Future<bool> saveUser(UserModel user) async {
+    final jsonStr = jsonEncode(user.toJson());
+    return await _prefs.setString(_keyUser, jsonStr);
   }
 
-  PartnerModel? getPartner() {
-    final jsonStr = _prefs.getString(_keyPartner);
+  UserModel? getUser() {
+    final jsonStr = _prefs.getString(_keyUser);
     if (jsonStr == null || jsonStr.isEmpty) return null;
     try {
       final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-      return PartnerModel.fromJson(map);
+      return UserModel.fromJson(map);
     } catch (_) {
       return null;
     }
   }
 
-  // --- Login Status ---
+  // --- Login State ---
   Future<bool> setLoggedIn(bool isLoggedIn) async {
     return await _prefs.setBool(_keyIsLoggedIn, isLoggedIn);
   }
@@ -53,14 +53,14 @@ class StorageService {
   }
 
   // --- Clear on Logout ---
-  Future<void> clearAll() async {
+  Future<void> clear() async {
     await _prefs.remove(_keyToken);
-    await _prefs.remove(_keyPartner);
+    await _prefs.remove(_keyUser);
     await _prefs.setBool(_keyIsLoggedIn, false);
   }
 }
 
-/// Provider for StorageService
-final storageServiceProvider = Provider<StorageService>((ref) {
-  throw UnimplementedError('storageServiceProvider must be overridden in ProviderScope in main.dart');
+/// Riverpod provider for TokenStorage
+final tokenStorageProvider = Provider<TokenStorage>((ref) {
+  throw UnimplementedError('tokenStorageProvider must be overridden in ProviderScope in main.dart');
 });

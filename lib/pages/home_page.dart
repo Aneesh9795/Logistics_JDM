@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../auth/viewmodels/auth_viewmodel.dart';
+import '../core/theme/app_colors.dart';
+import '../core/constants/app_constants.dart';
+import '../providers/auth_provider.dart';
 import '../models/order_model.dart';
-import '../viewmodels/orders_viewmodel.dart';
-import '../widgets/delivery_confirm_dialog.dart';
-import '../widgets/failed_reason_sheet.dart';
-import '../widgets/order_card.dart';
+import '../providers/orders_provider.dart';
+import 'widgets/delivery_confirm_dialog.dart';
+import 'widgets/failed_reason_sheet.dart';
+import 'widgets/order_card.dart';
 
-class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
+class HomePage extends ConsumerWidget {
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ordersState = ref.watch(ordersViewModelProvider);
-    final ordersVM = ref.read(ordersViewModelProvider.notifier);
-    final authState = ref.watch(authViewModelProvider);
+    final ordersState = ref.watch(ordersProvider);
+    final ordersVM = ref.read(ordersProvider.notifier);
+    final authState = ref.watch(authProvider);
 
     final groupedOrders = ordersState.groupedOrdersByDate;
 
@@ -100,7 +100,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       onPressed: () {
                         Navigator.of(ctx).pop();
-                        ref.read(authViewModelProvider.notifier).logout();
+                        ref.read(authProvider.notifier).logout();
                         context.go('/login');
                       },
                       child: const Text('LOGOUT'),
