@@ -12,11 +12,10 @@ class ApiClient {
     dio = Dio(
       BaseOptions(
         baseUrl: ApiEndpoints.baseUrl,
-        connectTimeout: const Duration(seconds: 20),
-        receiveTimeout: const Duration(seconds: 20),
+        connectTimeout: const Duration(seconds: 25),
+        receiveTimeout: const Duration(seconds: 25),
         headers: {
           'Accept': 'application/json',
-          'Content-Type': 'application/json',
         },
       ),
     );
@@ -72,6 +71,16 @@ class ApiClient {
     }
   }
 
+  // --- PATCH Method (Used for Status & POD updates) ---
+  Future<dynamic> patch(String endpoint, {dynamic data}) async {
+    try {
+      final response = await dio.patch(endpoint, data: data);
+      return response.data;
+    } on DioException catch (e) {
+      throw _parseError(e);
+    }
+  }
+
   // Helper to extract clean error message from backend
   String _parseError(DioException e) {
     if (e.response?.data != null && e.response?.data is Map) {
@@ -88,12 +97,24 @@ class ApiClient {
 
       // Check for message { message: "error text" }
       if (data['message'] != null) {
-        return data['message'].toString();
+        final msg = data['message'].toString();
+        if (msg == 'Server Error') {
+          return 'Server Error (500): Backend controller threw an unhandled exception.';
+        }
+        return msg;
       }
     }
 
+    if (e.response?.statusCode == 500) {
+      return 'Server Error (500): Backend failed to process the request. Please notify backend developer.';
+    }
+
+    if (e.response?.statusCode == 503 || e.response?.statusCode == 502) {
+      return 'Server is temporarily unavailable (503). Backend might be restarting or in maintenance.';
+    }
+
     if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
-      return 'Connection timed out. Please try again.';
+      return 'Connection timed out. Please check your network and try again.';
     }
 
     if (e.type == DioExceptionType.connectionError) {

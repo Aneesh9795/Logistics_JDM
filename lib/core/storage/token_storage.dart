@@ -52,6 +52,15 @@ class TokenStorage {
     return _prefs.getBool(_keyIsLoggedIn) ?? false;
   }
 
+  // --- Local POD Cache (keeps captured photo visible on device even if server symlink is pending) ---
+  Future<void> saveLocalPodPath(String docketNo, String localPath) async {
+    await _prefs.setString('pod_local_$docketNo', localPath);
+  }
+
+  String? getLocalPodPath(String docketNo) {
+    return _prefs.getString('pod_local_$docketNo');
+  }
+
   // --- Clear on Logout ---
   Future<void> clear() async {
     await _prefs.remove(_keyToken);

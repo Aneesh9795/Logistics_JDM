@@ -142,14 +142,27 @@ class OrderDetailPage extends ConsumerWidget {
                             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                           ),
                           onPressed: () {
-                            FailedReasonSheet.show(context, (reason) {
-                              ordersVM.markAsFailed(order.docketNo, reason);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Order marked as Failed.'),
-                                  backgroundColor: AppColors.brandRed,
-                                ),
-                              );
+                            FailedReasonSheet.show(context, (reason) async {
+                              _showLoadingDialog(context, 'Updating order status...');
+                              final result = await ordersVM.markOrderFailed(order.docketNo, reason);
+                              if (context.mounted) {
+                                Navigator.of(context, rootNavigator: true).pop(); // Dismiss loading
+                                if (result.success) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Order marked as Failed.'),
+                                      backgroundColor: AppColors.brandRed,
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(result.error ?? 'Failed to update status on server.'),
+                                      backgroundColor: AppColors.brandRed,
+                                    ),
+                                  );
+                                }
+                              }
                             });
                           },
                         ),
@@ -185,14 +198,31 @@ class OrderDetailPage extends ConsumerWidget {
                             DeliveryHelper.startDeliveryFlow(
                               context: context,
                               docketNo: order.docketNo,
-                              onConfirmed: (imagePath) {
-                                ordersVM.markAsDelivered(order.docketNo, imagePath);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Delivery proof uploaded! Order marked as Delivered.'),
-                                    backgroundColor: AppColors.statusDeliveredText,
-                                  ),
+                              onConfirmed: (imagePath) async {
+                                _showLoadingDialog(context, 'Uploading delivery proof & updating status...');
+                                final result = await ordersVM.markOrderDelivered(
+                                  order.docketNo,
+                                  invoiceImagePath: imagePath,
                                 );
+                                if (context.mounted) {
+                                  Navigator.of(context, rootNavigator: true).pop(); // Dismiss loading
+                                  if (result.success) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Delivery proof uploaded! Order marked as Delivered.'),
+                                        backgroundColor: AppColors.statusDeliveredText,
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(result.error ?? 'Upload failed on server.'),
+                                        backgroundColor: AppColors.brandRed,
+                                        duration: const Duration(seconds: 4),
+                                      ),
+                                    );
+                                  }
+                                }
                               },
                             );
                           },
@@ -436,6 +466,39 @@ class OrderDetailPage extends ConsumerWidget {
   }
 
   Widget _buildInvoiceProofCard(BuildContext context, String imagePath) {
+    Widget imageWidget;
+    final isLocal = !kIsWeb && File(imagePath).existsSync();
+
+    if (isLocal) {
+      imageWidget = Image.file(
+        File(imagePath),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
+      );
+    } else {
+      final fullUrl = imagePath.startsWith('http://') || imagePath.startsWith('https://')
+          ? imagePath
+          : 'https://jmdlogisticsolutions.com/storage/$imagePath';
+
+      imageWidget = Image.network(
+        fullUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return const Center(
+            child: SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(
+          label: 'Proof recorded on server ($imagePath)',
+        ),
+      );
+    }
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -466,9 +529,7 @@ class OrderDetailPage extends ConsumerWidget {
                 width: double.infinity,
                 height: 220,
                 color: Colors.grey.shade100,
-                child: kIsWeb
-                    ? Image.network(imagePath, fit: BoxFit.cover)
-                    : Image.file(File(imagePath), fit: BoxFit.cover),
+                child: imageWidget,
               ),
             ),
             const SizedBox(height: 8),
@@ -481,6 +542,62 @@ class OrderDetailPage extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder({String label = 'Image unavailable'}) {
+    return Container(
+      color: Colors.grey.shade200,
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.image_outlined, size: 44, color: AppColors.textMuted),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLoadingDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryNavy),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

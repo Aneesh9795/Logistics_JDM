@@ -119,7 +119,14 @@ class HomePage extends ConsumerWidget {
           child: RefreshIndicator(
             onRefresh: () => ordersVM.refresh(),
             color: AppColors.primaryNavy,
-            child: CustomScrollView(
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (scrollInfo) {
+                if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
+                  ordersVM.loadMore();
+                }
+                return false;
+              },
+              child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
                 // Top Metrics & Search Bar
@@ -130,7 +137,7 @@ class HomePage extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 4 Simple Counters
+                        // 4 Live Counters
                         Row(
                           children: [
                             _MetricCard(
@@ -144,6 +151,13 @@ class HomePage extends ConsumerWidget {
                               title: 'Pending',
                               count: ordersState.pendingCount,
                               color: AppColors.statusInTransitText,
+                              icon: Icons.pending_actions_outlined,
+                            ),
+                            const SizedBox(width: 8),
+                            _MetricCard(
+                              title: 'In Transit',
+                              count: ordersState.inTransitCount,
+                              color: AppColors.statusPickedUpText,
                               icon: Icons.local_shipping_outlined,
                             ),
                             const SizedBox(width: 8),
@@ -152,13 +166,6 @@ class HomePage extends ConsumerWidget {
                               count: ordersState.deliveredCount,
                               color: AppColors.statusDeliveredText,
                               icon: Icons.check_circle_outline,
-                            ),
-                            const SizedBox(width: 8),
-                            _MetricCard(
-                              title: 'Failed',
-                              count: ordersState.failedCount,
-                              color: AppColors.statusFailedText,
-                              icon: Icons.highlight_off_rounded,
                             ),
                           ],
                         ),
@@ -193,8 +200,48 @@ class HomePage extends ConsumerWidget {
                   child: SizedBox(height: 10),
                 ),
 
-                // Empty State
-                if (ordersState.filteredOrders.isEmpty)
+                // States: Loading / Error / Empty
+                if (ordersState.isLoading && ordersState.orders.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryNavy),
+                      ),
+                    ),
+                  )
+                else if (ordersState.errorMessage != null && ordersState.orders.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.cloud_off_rounded, size: 56, color: AppColors.brandRed),
+                            const SizedBox(height: 12),
+                            Text(
+                              ordersState.errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () => ordersVM.refresh(),
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('RETRY'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryNavy,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                else if (ordersState.filteredOrders.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
@@ -204,7 +251,7 @@ class HomePage extends ConsumerWidget {
                           Icon(Icons.inbox_outlined, size: 56, color: Colors.grey.shade400),
                           const SizedBox(height: 12),
                           const Text(
-                            'No orders found',
+                            'No shipments assigned',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -213,7 +260,7 @@ class HomePage extends ConsumerWidget {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Try searching with a different Docket or Location',
+                            'Pull down to refresh and check for new shipments',
                             style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
                           ),
                         ],
@@ -289,39 +336,90 @@ class HomePage extends ConsumerWidget {
                                   onTapView: () {
                                     context.push('/order-detail/${order.docketNo}');
                                   },
-                                  onStatusChanged: (newStatus) {
+                                  onStatusChanged: (newStatus) async {
                                     if (newStatus == OrderStatus.delivered) {
                                       DeliveryHelper.startDeliveryFlow(
                                         context: context,
                                         docketNo: order.docketNo,
-                                        onConfirmed: (imagePath) {
-                                          ordersVM.markAsDelivered(order.docketNo, imagePath);
+                                        onConfirmed: (imagePath) async {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             const SnackBar(
-                                              content: Text('Delivery proof uploaded! Order marked as Delivered.'),
-                                              backgroundColor: AppColors.statusDeliveredText,
+                                              content: Row(
+                                                children: [
+                                                  SizedBox(
+                                                    width: 18,
+                                                    height: 18,
+                                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                                  ),
+                                                  SizedBox(width: 12),
+                                                  Text('Uploading proof & updating status...'),
+                                                ],
+                                              ),
+                                              duration: Duration(seconds: 2),
                                             ),
                                           );
+                                          final result = await ordersVM.markOrderDelivered(order.docketNo, invoiceImagePath: imagePath);
+                                          if (context.mounted) {
+                                            if (result.success) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Delivery proof uploaded! Order marked as Delivered.'),
+                                                  backgroundColor: AppColors.statusDeliveredText,
+                                                ),
+                                              );
+                                            } else {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(result.error ?? 'Upload failed on server.'),
+                                                  backgroundColor: AppColors.brandRed,
+                                                  duration: const Duration(seconds: 4),
+                                                ),
+                                              );
+                                            }
+                                          }
                                         },
                                       );
                                     } else if (newStatus == OrderStatus.failed) {
-                                      FailedReasonSheet.show(context, (reason) {
-                                        ordersVM.markAsFailed(order.docketNo, reason);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Order marked as Failed.'),
-                                            backgroundColor: AppColors.brandRed,
-                                          ),
-                                        );
+                                      FailedReasonSheet.show(context, (reason) async {
+                                        final result = await ordersVM.markOrderFailed(order.docketNo, reason);
+                                        if (context.mounted) {
+                                          if (result.success) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Order marked as Failed.'),
+                                                backgroundColor: AppColors.brandRed,
+                                              ),
+                                            );
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(result.error ?? 'Failed to update status on server.'),
+                                                backgroundColor: AppColors.brandRed,
+                                              ),
+                                            );
+                                          }
+                                        }
                                       });
                                     } else {
-                                      ordersVM.updateOrderStatus(order.docketNo, newStatus);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Status updated to: ${newStatus.label}'),
-                                          duration: const Duration(milliseconds: 1200),
-                                        ),
-                                      );
+                                      final result = await ordersVM.updateOrderStatus(order.docketNo, newStatus);
+                                      if (context.mounted) {
+                                        if (result.success) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Status updated to: ${newStatus.label}'),
+                                              duration: const Duration(milliseconds: 1200),
+                                            ),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(result.error ?? 'Failed to update status on server.'),
+                                              backgroundColor: AppColors.brandRed,
+                                              duration: const Duration(seconds: 4),
+                                            ),
+                                          );
+                                        }
+                                      }
                                     }
                                   },
                                 );
@@ -331,6 +429,24 @@ class HomePage extends ConsumerWidget {
                         );
                       },
                       childCount: groupedOrders.length,
+                    ),
+                  ),
+
+                // Bottom lazy loading loader
+                if (ordersState.isLoadingMore)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryNavy),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
 
@@ -347,8 +463,9 @@ class HomePage extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+ }
 }
 
 class _MetricCard extends StatelessWidget {

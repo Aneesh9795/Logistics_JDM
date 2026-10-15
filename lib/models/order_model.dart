@@ -11,7 +11,7 @@ enum OrderStatus {
   String get label {
     switch (this) {
       case OrderStatus.newOrder:
-        return 'Booked (New)';
+        return 'Booked';
       case OrderStatus.pickedUp:
         return 'Picked Up';
       case OrderStatus.inTransit:
@@ -80,78 +80,143 @@ enum OrderStatus {
 }
 
 class OrderModel {
-  final int sNo; // Column A
-  final String deliveryDate; // Column B
-  final String orderDate; // Column D
-  final String docketNo; // Column E
-  final String from; // Column F
-  final String to; // Column G
-  final String brand; // Column H
-  final String noOfBoxes; // Column I
+  final int id;
+  final String docketNo;
+  final String pickupLocation;
+  final String deliveryLocation;
+  final String pickupDate;
+  final String expectedDeliveryDate;
+  final String deliveryDateStr;
+  final String consigneeName;
+  final String consigneeContact;
+  final String weight;
+  final String pieces;
+  final String description;
   final OrderStatus status;
-  final String? invoiceImagePath;
+  final String currentLocation;
+  final String? remarks;
+  final String? podFile;
+  final String customerName;
+  final String customerCompany;
+  final String customerMobile;
+  final String fullDeliveryAddress;
   final String? failedReason;
   final DateTime? completedAt;
 
   const OrderModel({
-    required this.sNo,
-    required this.deliveryDate,
-    required this.orderDate,
+    required this.id,
     required this.docketNo,
-    required this.from,
-    required this.to,
-    required this.brand,
-    required this.noOfBoxes,
+    required this.pickupLocation,
+    required this.deliveryLocation,
+    this.pickupDate = '',
+    this.expectedDeliveryDate = '',
+    this.deliveryDateStr = '',
+    this.consigneeName = '',
+    this.consigneeContact = '',
+    this.weight = '0.00',
+    this.pieces = '1',
+    this.description = '',
     this.status = OrderStatus.newOrder,
-    this.invoiceImagePath,
+    this.currentLocation = '',
+    this.remarks,
+    this.podFile,
+    this.customerName = '',
+    this.customerCompany = '',
+    this.customerMobile = '',
+    this.fullDeliveryAddress = '',
     this.failedReason,
     this.completedAt,
   });
 
+  // UI Compatibility Getters
+  int get sNo => id;
+  String get from => pickupLocation.isNotEmpty ? pickupLocation : 'Main Hub';
+  String get to => deliveryLocation.isNotEmpty ? deliveryLocation : fullDeliveryAddress;
+  String get brand => description.isNotEmpty ? description : (customerCompany.isNotEmpty ? customerCompany : 'JMD');
+  String get noOfBoxes => '$pieces Box';
+  String get orderDate => pickupDate.split('T').first;
+  String get deliveryDate => expectedDeliveryDate.isNotEmpty ? expectedDeliveryDate.split('T').first : deliveryDateStr.split('T').first;
+  String? get invoiceImagePath => podFile;
+
   OrderModel copyWith({
-    int? sNo,
-    String? deliveryDate,
-    String? orderDate,
+    int? id,
     String? docketNo,
-    String? from,
-    String? to,
-    String? brand,
-    String? noOfBoxes,
+    String? pickupLocation,
+    String? deliveryLocation,
+    String? pickupDate,
+    String? expectedDeliveryDate,
+    String? deliveryDateStr,
+    String? consigneeName,
+    String? consigneeContact,
+    String? weight,
+    String? pieces,
+    String? description,
     OrderStatus? status,
-    String? invoiceImagePath,
+    String? currentLocation,
+    String? remarks,
+    String? podFile,
+    String? customerName,
+    String? customerCompany,
+    String? customerMobile,
+    String? fullDeliveryAddress,
     String? failedReason,
     DateTime? completedAt,
   }) {
     return OrderModel(
-      sNo: sNo ?? this.sNo,
-      deliveryDate: deliveryDate ?? this.deliveryDate,
-      orderDate: orderDate ?? this.orderDate,
+      id: id ?? this.id,
       docketNo: docketNo ?? this.docketNo,
-      from: from ?? this.from,
-      to: to ?? this.to,
-      brand: brand ?? this.brand,
-      noOfBoxes: noOfBoxes ?? this.noOfBoxes,
+      pickupLocation: pickupLocation ?? this.pickupLocation,
+      deliveryLocation: deliveryLocation ?? this.deliveryLocation,
+      pickupDate: pickupDate ?? this.pickupDate,
+      expectedDeliveryDate: expectedDeliveryDate ?? this.expectedDeliveryDate,
+      deliveryDateStr: deliveryDateStr ?? this.deliveryDateStr,
+      consigneeName: consigneeName ?? this.consigneeName,
+      consigneeContact: consigneeContact ?? this.consigneeContact,
+      weight: weight ?? this.weight,
+      pieces: pieces ?? this.pieces,
+      description: description ?? this.description,
       status: status ?? this.status,
-      invoiceImagePath: invoiceImagePath ?? this.invoiceImagePath,
+      currentLocation: currentLocation ?? this.currentLocation,
+      remarks: remarks ?? this.remarks,
+      podFile: podFile ?? this.podFile,
+      customerName: customerName ?? this.customerName,
+      customerCompany: customerCompany ?? this.customerCompany,
+      customerMobile: customerMobile ?? this.customerMobile,
+      fullDeliveryAddress: fullDeliveryAddress ?? this.fullDeliveryAddress,
       failedReason: failedReason ?? this.failedReason,
       completedAt: completedAt ?? this.completedAt,
     );
   }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
+    final customerData = json['customer'] as Map<String, dynamic>?;
+    final addressData = json['delivery_address'] as Map<String, dynamic>?;
+
+    final id = json['id'] is int
+        ? json['id'] as int
+        : (int.tryParse(json['id']?.toString() ?? json['s_no']?.toString() ?? '0') ?? 0);
+
     return OrderModel(
-      sNo: json['s_no'] is int
-          ? json['s_no'] as int
-          : int.tryParse(json['s_no']?.toString() ?? '0') ?? 0,
-      deliveryDate: json['delivery_date'] as String? ?? '',
-      orderDate: json['date'] as String? ?? '',
-      docketNo: json['docket_no'] as String? ?? '',
-      from: json['from'] as String? ?? '',
-      to: json['to'] as String? ?? '',
-      brand: json['brand'] as String? ?? '',
-      noOfBoxes: json['no_of_boxes'] as String? ?? '1 Box',
+      id: id,
+      docketNo: (json['docket_no'] ?? json['docketNo'] ?? '').toString(),
+      pickupLocation: (json['pickup_location'] ?? json['from'] ?? '').toString().trim(),
+      deliveryLocation: (json['delivery_location'] ?? json['to'] ?? '').toString().trim(),
+      pickupDate: (json['pickup_date'] ?? json['date'] ?? '').toString(),
+      expectedDeliveryDate: (json['expected_delivery_date'] ?? json['delivery_date'] ?? '').toString(),
+      deliveryDateStr: (json['delivery_date'] ?? '').toString(),
+      consigneeName: (json['consignee_name'] ?? '').toString(),
+      consigneeContact: (json['consignee_contact'] ?? '').toString(),
+      weight: (json['weight'] ?? '0.00').toString(),
+      pieces: (json['pieces'] ?? json['no_of_boxes']?.toString().replaceAll('Box', '').trim() ?? '1').toString(),
+      description: (json['description'] ?? json['brand'] ?? '').toString(),
       status: OrderStatus.fromString(json['status'] as String?),
-      invoiceImagePath: json['invoice_image_path'] as String?,
+      currentLocation: (json['current_location'] ?? '').toString(),
+      remarks: json['remarks'] as String?,
+      podFile: (json['pod_file'] ?? json['invoice_image_path']) as String?,
+      customerName: customerData?['customer_name'] as String? ?? '',
+      customerCompany: customerData?['company_name'] as String? ?? '',
+      customerMobile: customerData?['mobile'] as String? ?? '',
+      fullDeliveryAddress: addressData?['address'] as String? ?? '',
       failedReason: json['failed_reason'] as String?,
       completedAt: json['completed_at'] != null
           ? DateTime.tryParse(json['completed_at'].toString())
@@ -161,18 +226,30 @@ class OrderModel {
 
   Map<String, dynamic> toJson() {
     return {
-      's_no': sNo,
-      'delivery_date': deliveryDate,
-      'date': orderDate,
+      'id': id,
       'docket_no': docketNo,
-      'from': from,
-      'to': to,
-      'brand': brand,
-      'no_of_boxes': noOfBoxes,
+      'pickup_location': pickupLocation,
+      'delivery_location': deliveryLocation,
+      'pickup_date': pickupDate,
+      'expected_delivery_date': expectedDeliveryDate,
+      'delivery_date': deliveryDateStr,
+      'consignee_name': consigneeName,
+      'consignee_contact': consigneeContact,
+      'weight': weight,
+      'pieces': pieces,
+      'description': description,
       'status': status.label,
-      'invoice_image_path': invoiceImagePath,
-      'failed_reason': failedReason,
-      'completed_at': completedAt?.toIso8601String(),
+      'current_location': currentLocation,
+      'remarks': remarks,
+      'pod_file': podFile,
+      'customer': {
+        'customer_name': customerName,
+        'company_name': customerCompany,
+        'mobile': customerMobile,
+      },
+      'delivery_address': {
+        'address': fullDeliveryAddress,
+      },
     };
   }
 }
