@@ -324,6 +324,10 @@ class OrderDetailPage extends ConsumerWidget {
             _buildDetailRow('S. No.', '${order.sNo}'),
             _buildDetailRow('Docket No.', order.docketNo, isBold: true),
             _buildDetailRow('Brand', order.brand, isTag: true),
+            if (order.customerCompany.isNotEmpty && order.customerCompany != order.brand)
+              _buildDetailRow('Company Name', order.customerCompany),
+            if (order.customerName.isNotEmpty)
+              _buildDetailRow('Customer Name', order.customerName),
             _buildDetailRow('No. of Boxes', order.noOfBoxes),
             _buildDetailRow('Booking Date', order.orderDate),
             _buildDetailRow('Delivery Date', order.deliveryDate, highlight: true),
@@ -647,6 +651,7 @@ class OrderDetailPage extends ConsumerWidget {
                       ),
                       child: Text(
                         value,
+                        textAlign: TextAlign.end,
                         style: const TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,

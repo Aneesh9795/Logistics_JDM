@@ -191,22 +191,63 @@ class HomePage extends ConsumerWidget {
 
                         const SizedBox(height: 14),
 
-                        // Fast Search Bar
-                        TextField(
-                          onChanged: (val) => ordersVM.setSearchQuery(val),
-                          decoration: InputDecoration(
-                            hintText: 'Search by Docket, Brand, From or To...',
-                            prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textMuted),
-                            filled: true,
-                            fillColor: AppColors.scaffoldBg,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
+                        // Fast Decorated Search Bar (High Visibility)
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: AppColors.primaryNavy.withAlpha(55),
+                              width: 1.4,
                             ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryNavy.withAlpha(14),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            onChanged: (val) => ordersVM.setSearchQuery(val),
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Search by Docket, Brand, From or To...',
+                              hintStyle: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textMuted,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              prefixIcon: Container(
+                                margin: const EdgeInsets.only(left: 4, right: 6),
+                                child: const Icon(
+                                  Icons.search_rounded,
+                                  size: 22,
+                                  color: AppColors.primaryNavy,
+                                ),
+                              ),
+                              prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                              suffixIcon: ordersState.searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.textMuted),
+                                      onPressed: () => ordersVM.setSearchQuery(''),
+                                    )
+                                  : null,
+                              filled: false,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: AppColors.primaryNavy,
+                                  width: 2.0,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -261,45 +302,7 @@ class HomePage extends ConsumerWidget {
                 else if (ordersState.filteredOrders.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.inbox_outlined, size: 56, color: Colors.grey.shade400),
-                          const SizedBox(height: 12),
-                          Text(
-                            ordersState.selectedFilter != OrderFilterType.total
-                                ? 'No ${ordersState.selectedFilter.label} shipments'
-                                : 'No shipments assigned',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            ordersState.selectedFilter != OrderFilterType.total
-                                ? 'Tap "Total" to see all shipments or reset filter'
-                                : 'Pull down to refresh and check for new shipments',
-                            style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
-                          ),
-                          if (ordersState.selectedFilter != OrderFilterType.total) ...[
-                            const SizedBox(height: 16),
-                            OutlinedButton.icon(
-                              onPressed: () => ordersVM.setFilter(OrderFilterType.total),
-                              icon: const Icon(Icons.clear_all, size: 16),
-                              label: const Text('Show All Orders'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.primaryNavy,
-                                side: const BorderSide(color: AppColors.primaryNavy),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                    child: _buildEmptyState(context, ordersState, ordersVM),
                   )
                 else
                   // Date-wise Grouped Orders (Boss's exact sketch)
@@ -485,6 +488,231 @@ class HomePage extends ConsumerWidget {
     ),
   );
  }
+
+  Widget _buildEmptyState(
+    BuildContext context,
+    OrdersState ordersState,
+    OrdersNotifier ordersVM,
+  ) {
+    final Color accentColor;
+    final IconData filterIcon;
+    final String title;
+    final String description;
+
+    if (ordersState.searchQuery.isNotEmpty) {
+      accentColor = AppColors.primaryNavy;
+      filterIcon = Icons.search_off_rounded;
+      title = 'No Matching Results';
+      description = 'No shipments match "${ordersState.searchQuery}". Try a different docket, brand, or branch.';
+    } else {
+      switch (ordersState.selectedFilter) {
+        case OrderFilterType.inTransit:
+          accentColor = AppColors.statusPickedUpText;
+          filterIcon = Icons.local_shipping_rounded;
+          title = 'No In-Transit Shipments';
+          description = 'There are no packages currently in transit. All items are either delivered or awaiting dispatch at the hub.';
+          break;
+        case OrderFilterType.pending:
+          accentColor = AppColors.statusInTransitText;
+          filterIcon = Icons.pending_actions_rounded;
+          title = 'No Pending Shipments';
+          description = 'All shipments have been processed. Great job keeping the hub clear!';
+          break;
+        case OrderFilterType.delivered:
+          accentColor = AppColors.statusDeliveredText;
+          filterIcon = Icons.task_alt_rounded;
+          title = 'No Delivered Shipments';
+          description = 'No shipments have been marked as delivered yet in this current view.';
+          break;
+        case OrderFilterType.total:
+          accentColor = AppColors.primaryNavy;
+          filterIcon = Icons.inventory_2_outlined;
+          title = 'No Shipments Assigned';
+          description = 'You have zero assigned shipments at the moment. Pull down to refresh from the live server.';
+          break;
+      }
+    }
+
+    final hasFilterOrSearch = ordersState.selectedFilter != OrderFilterType.total || ordersState.searchQuery.isNotEmpty;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 440),
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 26),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.divider.withAlpha(90)),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withAlpha(16),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: Colors.black.withAlpha(8),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Layered Glowing Avatar / Badge
+              Container(
+                width: 78,
+                height: 78,
+                decoration: BoxDecoration(
+                  color: accentColor.withAlpha(16),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: accentColor.withAlpha(28),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        filterIcon,
+                        size: 30,
+                        color: accentColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Active Filter Chip Badge
+              if (hasFilterOrSearch)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: accentColor.withAlpha(16),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accentColor.withAlpha(45)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: accentColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        ordersState.searchQuery.isNotEmpty
+                            ? 'Search: "${ordersState.searchQuery}"'
+                            : 'Active Filter: ${ordersState.selectedFilter.label}',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: accentColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Heading
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 17.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.3,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              // Subtitle
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.45,
+                ),
+              ),
+
+              const SizedBox(height: 22),
+
+              // Action Buttons
+              if (hasFilterOrSearch) ...[
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      if (ordersState.searchQuery.isNotEmpty) {
+                        ordersVM.setSearchQuery('');
+                      }
+                      ordersVM.setFilter(OrderFilterType.total);
+                    },
+                    icon: const Icon(Icons.apps_rounded, size: 18, color: Colors.white),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        ordersState.totalCount > 0
+                            ? 'SHOW ALL ORDERS (${ordersState.totalCount})'
+                            : 'SHOW ALL ORDERS',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryNavy,
+                      elevation: 2,
+                      shadowColor: AppColors.primaryNavy.withAlpha(90),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+
+              // Secondary Refresh Action
+              TextButton.icon(
+                onPressed: () => ordersVM.refresh(),
+                icon: const Icon(Icons.refresh_rounded, size: 16, color: AppColors.textMuted),
+                label: const Text(
+                  'Refresh from server',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _MetricCard extends StatelessWidget {

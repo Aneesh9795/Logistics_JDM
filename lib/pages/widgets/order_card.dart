@@ -93,86 +93,91 @@ class OrderCard extends StatelessWidget {
                   ],
                 ),
 
+                const SizedBox(height: 8),
+
+                // Brand on Left & Box Count shifted to Right
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // LEFT: Brand Tag
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.brandRed.withAlpha(16),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.brandRed.withAlpha(55), width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Brand: ',
+                              style: TextStyle(
+                                color: AppColors.brandRed,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Flexible(
+                              child: Text(
+                                order.brand,
+                                style: const TextStyle(
+                                  color: AppColors.brandRed,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    // RIGHT: Box Count Tag (Shifted to Right Side)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.inventory_2_outlined, size: 12, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Text(
+                            order.noOfBoxes,
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
                 const SizedBox(height: 10),
                 const Divider(color: AppColors.divider, height: 1),
                 const SizedBox(height: 10),
 
-                // Middle Section: Left (Brand, Boxes, Route) & Right (Status Changed Box)
+                // Middle Section: Left (Route) & Right (Status Changed Box)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // LEFT SIDE: Brand + Boxes + Route
+                    // LEFT SIDE: Route
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Brand badge & Box count (Wrap to prevent any overflow on small devices)
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppColors.brandRed.withAlpha(15),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: AppColors.brandRed.withAlpha(60)),
-                                ),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.sell_outlined, size: 12, color: AppColors.brandRed),
-                                      const SizedBox(width: 4),
-                                      ConstrainedBox(
-                                        constraints: const BoxConstraints(maxWidth: 80),
-                                        child: Text(
-                                          order.brand,
-                                          style: const TextStyle(
-                                            color: AppColors.brandRed,
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.inventory_2_outlined, size: 12, color: AppColors.textSecondary),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        order.noOfBoxes,
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 10),
-
                           // Route: From -> To
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
