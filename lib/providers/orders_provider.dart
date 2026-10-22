@@ -1,9 +1,27 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/storage/token_storage.dart';
 import '../models/order_model.dart';
 import '../services/orders_service.dart';
+
+enum OrderFilterType {
+  total,
+  pending,
+  inTransit,
+  delivered;
+
+  String get label {
+    switch (this) {
+      case OrderFilterType.total:
+        return 'Total';
+      case OrderFilterType.pending:
+        return 'Pending';
+      case OrderFilterType.inTransit:
+        return 'In Transit';
+      case OrderFilterType.delivered:
+        return 'Delivered';
+    }
+  }
+}
 
 class OrdersState {
   final List<OrderModel> orders;
@@ -13,7 +31,7 @@ class OrdersState {
   final int lastPage;
   final int totalCountFromApi;
   final Map<String, int> dashboardCounts;
-  final OrderStatus? selectedFilter;
+  final OrderFilterType selectedFilter;
   final String searchQuery;
   final bool isTableView;
   final String? errorMessage;
@@ -31,7 +49,7 @@ class OrdersState {
       'in_transit': 0,
       'delivered': 0,
     },
-    this.selectedFilter,
+    this.selectedFilter = OrderFilterType.total,
     this.searchQuery = '',
     this.isTableView = true,
     this.errorMessage,
@@ -39,7 +57,24 @@ class OrdersState {
 
   List<OrderModel> get filteredOrders {
     return orders.where((order) {
-      final matchesFilter = selectedFilter == null || order.status == selectedFilter;
+      final bool matchesFilter;
+      switch (selectedFilter) {
+        case OrderFilterType.total:
+          matchesFilter = true;
+          break;
+        case OrderFilterType.pending:
+          matchesFilter = order.status != OrderStatus.delivered &&
+              order.status != OrderStatus.failed &&
+              order.status != OrderStatus.inTransit;
+          break;
+        case OrderFilterType.inTransit:
+          matchesFilter = order.status == OrderStatus.inTransit;
+          break;
+        case OrderFilterType.delivered:
+          matchesFilter = order.status == OrderStatus.delivered;
+          break;
+      }
+
       final matchesSearch = searchQuery.isEmpty ||
           order.docketNo.toLowerCase().contains(searchQuery.toLowerCase()) ||
           order.from.toLowerCase().contains(searchQuery.toLowerCase()) ||
@@ -65,7 +100,7 @@ class OrdersState {
   int get totalCount => dashboardCounts['total'] ?? orders.length;
   int get deliveredCount => dashboardCounts['delivered'] ?? orders.where((o) => o.status == OrderStatus.delivered).length;
   int get inTransitCount => dashboardCounts['in_transit'] ?? orders.where((o) => o.status == OrderStatus.inTransit).length;
-  int get pendingCount => dashboardCounts['pending'] ?? orders.where((o) => o.status != OrderStatus.delivered && o.status != OrderStatus.failed).length;
+  int get pendingCount => dashboardCounts['pending'] ?? orders.where((o) => o.status != OrderStatus.delivered && o.status != OrderStatus.failed && o.status != OrderStatus.inTransit).length;
   int get failedCount => orders.where((o) => o.status == OrderStatus.failed).length;
 
   OrdersState copyWith({
@@ -76,7 +111,7 @@ class OrdersState {
     int? lastPage,
     int? totalCountFromApi,
     Map<String, int>? dashboardCounts,
-    OrderStatus? Function()? selectedFilter,
+    OrderFilterType? selectedFilter,
     String? searchQuery,
     bool? isTableView,
     String? errorMessage,
@@ -89,7 +124,7 @@ class OrdersState {
       lastPage: lastPage ?? this.lastPage,
       totalCountFromApi: totalCountFromApi ?? this.totalCountFromApi,
       dashboardCounts: dashboardCounts ?? this.dashboardCounts,
-      selectedFilter: selectedFilter != null ? selectedFilter() : this.selectedFilter,
+      selectedFilter: selectedFilter ?? this.selectedFilter,
       searchQuery: searchQuery ?? this.searchQuery,
       isTableView: isTableView ?? this.isTableView,
       errorMessage: errorMessage,
@@ -108,8 +143,9 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
   List<OrderModel> _enrichWithLocalPod(List<OrderModel> shipments) {
     if (_tokenStorage == null) return shipments;
     return shipments.map((s) {
+      if (s.podFile != null && s.podFile!.isNotEmpty) return s;
       final localPath = _tokenStorage.getLocalPodPath(s.docketNo);
-      if (localPath != null && !kIsWeb && File(localPath).existsSync()) {
+      if (localPath != null && localPath.isNotEmpty) {
         return s.copyWith(podFile: localPath);
       }
       return s;
@@ -153,9 +189,9 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     }
   }
 
-  /// Lazy loading / Pagination (load next page)
+  /// Lazy loading / Pagination (load next page with deduplication & pre-emptive trigger)
   Future<void> loadMore() async {
-    if (state.isLoadingMore || state.currentPage >= state.lastPage) return;
+    if (state.isLoading || state.isLoadingMore || state.currentPage >= state.lastPage) return;
 
     state = state.copyWith(isLoadingMore: true);
 
@@ -163,7 +199,11 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
       final nextPage = state.currentPage + 1;
       final result = await _ordersService.fetchShipments(page: nextPage);
 
-      final combined = _enrichWithLocalPod([...state.orders, ...result.shipments]);
+      // Fast ID-based deduplication to prevent duplicate cards
+      final existingIds = state.orders.map((o) => o.id).toSet();
+      final newUniqueShipments = result.shipments.where((o) => !existingIds.contains(o.id)).toList();
+
+      final combined = _enrichWithLocalPod([...state.orders, ...newUniqueShipments]);
 
       state = state.copyWith(
         orders: combined,
@@ -180,8 +220,8 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
   /// Refresh alias for pull-to-refresh
   Future<void> refresh() => loadOrders();
 
-  void setFilter(OrderStatus? filter) {
-    state = state.copyWith(selectedFilter: () => filter);
+  void setFilter(OrderFilterType filter) {
+    state = state.copyWith(selectedFilter: filter);
   }
 
   void setSearchQuery(String query) {

@@ -19,4 +19,14 @@ class ApiEndpoints {
 
   // Update Shipment Status (PATCH)
   static String updateShipmentStatus(dynamic id) => '/delivery-boy/shipments/$id/status';
+
+  // Storage / Uploads Base URL
+  static const String storageBaseUrl = 'https://jmdlogisticsolutions.com/storage';
+  static String getStorageUrl(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    final cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    return '$storageBaseUrl/$cleanPath';
+  }
 }

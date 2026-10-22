@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../core/config/api_endpoints.dart';
 import '../core/theme/app_colors.dart';
+import '../core/utils/ui_helpers.dart';
 import '../models/order_model.dart';
 import '../providers/orders_provider.dart';
 import 'widgets/delivery_confirm_dialog.dart';
@@ -148,19 +150,9 @@ class OrderDetailPage extends ConsumerWidget {
                               if (context.mounted) {
                                 Navigator.of(context, rootNavigator: true).pop(); // Dismiss loading
                                 if (result.success) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Order marked as Failed.'),
-                                      backgroundColor: AppColors.brandRed,
-                                    ),
-                                  );
+                                  AppSnackbar.showSuccess(context, 'Order marked as Failed.');
                                 } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(result.error ?? 'Failed to update status on server.'),
-                                      backgroundColor: AppColors.brandRed,
-                                    ),
-                                  );
+                                  AppSnackbar.showError(context, result.error ?? 'Failed to update status on server.');
                                 }
                               }
                             });
@@ -207,20 +199,9 @@ class OrderDetailPage extends ConsumerWidget {
                                 if (context.mounted) {
                                   Navigator.of(context, rootNavigator: true).pop(); // Dismiss loading
                                   if (result.success) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Delivery proof uploaded! Order marked as Delivered.'),
-                                        backgroundColor: AppColors.statusDeliveredText,
-                                      ),
-                                    );
+                                    AppSnackbar.showSuccess(context, 'Delivery proof uploaded! Order marked as Delivered.');
                                   } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(result.error ?? 'Upload failed on server.'),
-                                        backgroundColor: AppColors.brandRed,
-                                        duration: const Duration(seconds: 4),
-                                      ),
-                                    );
+                                    AppSnackbar.showError(context, result.error ?? 'Upload failed on server.');
                                   }
                                 }
                               },
@@ -476,9 +457,7 @@ class OrderDetailPage extends ConsumerWidget {
         errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(),
       );
     } else {
-      final fullUrl = imagePath.startsWith('http://') || imagePath.startsWith('https://')
-          ? imagePath
-          : 'https://jmdlogisticsolutions.com/storage/$imagePath';
+      final fullUrl = ApiEndpoints.getStorageUrl(imagePath);
 
       imageWidget = Image.network(
         fullUrl,

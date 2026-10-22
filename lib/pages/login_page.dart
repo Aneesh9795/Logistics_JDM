@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
+import '../core/utils/ui_helpers.dart';
 import '../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -39,13 +40,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       context.go('/home');
     } else {
       final error = ref.read(authProvider).errorMessage ?? 'Login failed';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error),
-          backgroundColor: AppColors.brandRed,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppSnackbar.showError(context, error);
     }
   }
 

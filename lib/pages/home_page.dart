@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../core/theme/app_colors.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/ui_helpers.dart';
 import '../providers/auth_provider.dart';
 import '../models/order_model.dart';
 import '../providers/orders_provider.dart';
@@ -121,8 +122,11 @@ class HomePage extends ConsumerWidget {
             color: AppColors.primaryNavy,
             child: NotificationListener<ScrollNotification>(
               onNotification: (scrollInfo) {
-                if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
-                  ordersVM.loadMore();
+                if (scrollInfo is ScrollUpdateNotification) {
+                  // Pre-fetch next page 350px before reaching the end for seamless continuous scroll
+                  if (scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 350) {
+                    ordersVM.loadMore();
+                  }
                 }
                 return false;
               },
@@ -145,6 +149,8 @@ class HomePage extends ConsumerWidget {
                               count: ordersState.totalCount,
                               color: AppColors.primaryNavy,
                               icon: Icons.inventory_2_outlined,
+                              isSelected: ordersState.selectedFilter == OrderFilterType.total,
+                              onTap: () => ordersVM.setFilter(OrderFilterType.total),
                             ),
                             const SizedBox(width: 8),
                             _MetricCard(
@@ -152,6 +158,8 @@ class HomePage extends ConsumerWidget {
                               count: ordersState.pendingCount,
                               color: AppColors.statusInTransitText,
                               icon: Icons.pending_actions_outlined,
+                              isSelected: ordersState.selectedFilter == OrderFilterType.pending,
+                              onTap: () => ordersVM.setFilter(OrderFilterType.pending),
                             ),
                             const SizedBox(width: 8),
                             _MetricCard(
@@ -159,6 +167,8 @@ class HomePage extends ConsumerWidget {
                               count: ordersState.inTransitCount,
                               color: AppColors.statusPickedUpText,
                               icon: Icons.local_shipping_outlined,
+                              isSelected: ordersState.selectedFilter == OrderFilterType.inTransit,
+                              onTap: () => ordersVM.setFilter(OrderFilterType.inTransit),
                             ),
                             const SizedBox(width: 8),
                             _MetricCard(
@@ -166,6 +176,8 @@ class HomePage extends ConsumerWidget {
                               count: ordersState.deliveredCount,
                               color: AppColors.statusDeliveredText,
                               icon: Icons.check_circle_outline,
+                              isSelected: ordersState.selectedFilter == OrderFilterType.delivered,
+                              onTap: () => ordersVM.setFilter(OrderFilterType.delivered),
                             ),
                           ],
                         ),
@@ -202,12 +214,10 @@ class HomePage extends ConsumerWidget {
 
                 // States: Loading / Error / Empty
                 if (ordersState.isLoading && ordersState.orders.isEmpty)
-                  const SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryNavy),
-                      ),
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => const _SkeletonOrderCard(),
+                      childCount: 4,
                     ),
                   )
                 else if (ordersState.errorMessage != null && ordersState.orders.isEmpty)
@@ -250,19 +260,36 @@ class HomePage extends ConsumerWidget {
                         children: [
                           Icon(Icons.inbox_outlined, size: 56, color: Colors.grey.shade400),
                           const SizedBox(height: 12),
-                          const Text(
-                            'No shipments assigned',
-                            style: TextStyle(
+                          Text(
+                            ordersState.selectedFilter != OrderFilterType.total
+                                ? 'No ${ordersState.selectedFilter.label} shipments'
+                                : 'No shipments assigned',
+                            style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
-                            'Pull down to refresh and check for new shipments',
-                            style: TextStyle(fontSize: 12.5, color: AppColors.textMuted),
+                          Text(
+                            ordersState.selectedFilter != OrderFilterType.total
+                                ? 'Tap "Total" to see all shipments or reset filter'
+                                : 'Pull down to refresh and check for new shipments',
+                            style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted),
                           ),
+                          if (ordersState.selectedFilter != OrderFilterType.total) ...[
+                            const SizedBox(height: 16),
+                            OutlinedButton.icon(
+                              onPressed: () => ordersVM.setFilter(OrderFilterType.total),
+                              icon: const Icon(Icons.clear_all, size: 16),
+                              label: const Text('Show All Orders'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.primaryNavy,
+                                side: const BorderSide(color: AppColors.primaryNavy),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -342,39 +369,13 @@ class HomePage extends ConsumerWidget {
                                         context: context,
                                         docketNo: order.docketNo,
                                         onConfirmed: (imagePath) async {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Row(
-                                                children: [
-                                                  SizedBox(
-                                                    width: 18,
-                                                    height: 18,
-                                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                                  ),
-                                                  SizedBox(width: 12),
-                                                  Text('Uploading proof & updating status...'),
-                                                ],
-                                              ),
-                                              duration: Duration(seconds: 2),
-                                            ),
-                                          );
+                                          AppSnackbar.showInfo(context, 'Uploading proof & updating status...');
                                           final result = await ordersVM.markOrderDelivered(order.docketNo, invoiceImagePath: imagePath);
                                           if (context.mounted) {
                                             if (result.success) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text('Delivery proof uploaded! Order marked as Delivered.'),
-                                                  backgroundColor: AppColors.statusDeliveredText,
-                                                ),
-                                              );
+                                              AppSnackbar.showSuccess(context, 'Delivery proof uploaded! Order marked as Delivered.');
                                             } else {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(result.error ?? 'Upload failed on server.'),
-                                                  backgroundColor: AppColors.brandRed,
-                                                  duration: const Duration(seconds: 4),
-                                                ),
-                                              );
+                                              AppSnackbar.showError(context, result.error ?? 'Upload failed on server.');
                                             }
                                           }
                                         },
@@ -384,19 +385,9 @@ class HomePage extends ConsumerWidget {
                                         final result = await ordersVM.markOrderFailed(order.docketNo, reason);
                                         if (context.mounted) {
                                           if (result.success) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Order marked as Failed.'),
-                                                backgroundColor: AppColors.brandRed,
-                                              ),
-                                            );
+                                            AppSnackbar.showSuccess(context, 'Order marked as Failed.');
                                           } else {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(
-                                                content: Text(result.error ?? 'Failed to update status on server.'),
-                                                backgroundColor: AppColors.brandRed,
-                                              ),
-                                            );
+                                            AppSnackbar.showError(context, result.error ?? 'Failed to update status on server.');
                                           }
                                         }
                                       });
@@ -404,20 +395,9 @@ class HomePage extends ConsumerWidget {
                                       final result = await ordersVM.updateOrderStatus(order.docketNo, newStatus);
                                       if (context.mounted) {
                                         if (result.success) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text('Status updated to: ${newStatus.label}'),
-                                              duration: const Duration(milliseconds: 1200),
-                                            ),
-                                          );
+                                          AppSnackbar.showInfo(context, 'Status updated to: ${newStatus.label}');
                                         } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(result.error ?? 'Failed to update status on server.'),
-                                              backgroundColor: AppColors.brandRed,
-                                              duration: const Duration(seconds: 4),
-                                            ),
-                                          );
+                                          AppSnackbar.showError(context, result.error ?? 'Failed to update status on server.');
                                         }
                                       }
                                     }
@@ -434,16 +414,45 @@ class HomePage extends ConsumerWidget {
 
                 // Bottom lazy loading loader
                 if (ordersState.isLoadingMore)
-                  const SliverToBoxAdapter(
+                  SliverToBoxAdapter(
                     child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       child: Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryNavy),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.divider),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withAlpha(8),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.0,
+                                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryNavy),
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'Loading more shipments...',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -473,54 +482,197 @@ class _MetricCard extends StatelessWidget {
   final int count;
   final Color color;
   final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   const _MetricCard({
     required this.title,
     required this.count,
     required this.color,
     required this.icon,
+    this.isSelected = false,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: color.withAlpha(12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withAlpha(40)),
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 6),
+            decoration: BoxDecoration(
+              color: isSelected ? color.withAlpha(24) : color.withAlpha(10),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: isSelected ? color : color.withAlpha(35),
+                width: isSelected ? 2.0 : 1.0,
+              ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: color.withAlpha(30),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Column(
               children: [
-                Icon(icon, size: 13, color: color),
-                const SizedBox(width: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: isSelected ? 14 : 13,
+                      color: color,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      count.toString(),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
                 Text(
-                  count.toString(),
+                  title,
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                     color: color,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                if (isSelected) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 14,
+                    height: 2.5,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _SkeletonOrderCard extends StatelessWidget {
+  const _SkeletonOrderCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 90,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Container(
+                width: 70,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 140,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: 200,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 80,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(color: AppColors.divider, height: 1),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 120,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Container(
+                width: 60,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
