@@ -624,7 +624,7 @@ class OrderDetailPage extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
@@ -634,31 +634,37 @@ class OrderDetailPage extends ConsumerWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          if (isTag)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.brandRed.withAlpha(20),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.brandRed,
-                ),
-              ),
-            )
-          else
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 13.5,
-                fontWeight: isBold ? FontWeight.w800 : (highlight ? FontWeight.w700 : FontWeight.w600),
-                color: highlight ? AppColors.primaryNavy : AppColors.textPrimary,
-              ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: isTag
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandRed.withAlpha(20),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        value,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.brandRed,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      value,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: isBold ? FontWeight.w800 : (highlight ? FontWeight.w700 : FontWeight.w600),
+                        color: highlight ? AppColors.primaryNavy : AppColors.textPrimary,
+                      ),
+                    ),
             ),
+          ),
         ],
       ),
     );

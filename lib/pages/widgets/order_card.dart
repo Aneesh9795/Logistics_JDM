@@ -119,25 +119,28 @@ class OrderCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(color: AppColors.brandRed.withAlpha(60)),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.sell_outlined, size: 12, color: AppColors.brandRed),
-                                    const SizedBox(width: 4),
-                                    ConstrainedBox(
-                                      constraints: const BoxConstraints(maxWidth: 80),
-                                      child: Text(
-                                        order.brand,
-                                        style: const TextStyle(
-                                          color: AppColors.brandRed,
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w700,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.sell_outlined, size: 12, color: AppColors.brandRed),
+                                      const SizedBox(width: 4),
+                                      ConstrainedBox(
+                                        constraints: const BoxConstraints(maxWidth: 80),
+                                        child: Text(
+                                          order.brand,
+                                          style: const TextStyle(
+                                            color: AppColors.brandRed,
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                               Container(
@@ -146,20 +149,23 @@ class OrderCard extends StatelessWidget {
                                   color: Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.inventory_2_outlined, size: 12, color: AppColors.textSecondary),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      order.noOfBoxes,
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.inventory_2_outlined, size: 12, color: AppColors.textSecondary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        order.noOfBoxes,
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],

@@ -336,24 +336,30 @@ class _SplashPageState extends ConsumerState<SplashPage>
                         const SizedBox(height: 28),
 
                         // Version & Security footer
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.lock_outline_rounded,
-                              size: 13,
-                              color: AppColors.textMuted.withValues(alpha: 0.7),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.lock_outline_rounded,
+                                  size: 13,
+                                  color: AppColors.textMuted.withValues(alpha: 0.7),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'v1.0.0 • Secured Delivery Network',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textMuted.withValues(alpha: 0.8),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 5),
-                            Text(
-                              'v1.0.0 • Secured Delivery Network',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textMuted.withValues(alpha: 0.8),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
 
                         const SizedBox(height: 16),
