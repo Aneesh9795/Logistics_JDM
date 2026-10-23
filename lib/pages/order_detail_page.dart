@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../core/config/api_endpoints.dart';
+import '../core/storage/token_storage.dart';
 import '../core/theme/app_colors.dart';
 import '../core/utils/ui_helpers.dart';
 import '../models/order_model.dart';
@@ -36,6 +37,10 @@ class OrderDetailPage extends ConsumerWidget {
 
     final isDelivered = order.status == OrderStatus.delivered;
     final isFailed = order.status == OrderStatus.failed;
+    final cachedLocalPod = ref.watch(tokenStorageProvider).getLocalPodPath(docketNo);
+    final effectiveProof = (order.invoiceImagePath != null && order.invoiceImagePath!.isNotEmpty)
+        ? order.invoiceImagePath!
+        : (cachedLocalPod ?? '');
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBg,
@@ -79,8 +84,8 @@ class OrderDetailPage extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 // Card 3: Invoice Proof Display (If available / Delivered)
-                if (order.invoiceImagePath != null && order.invoiceImagePath!.isNotEmpty) ...[
-                  _buildInvoiceProofCard(context, order.invoiceImagePath!),
+                if (effectiveProof.isNotEmpty) ...[
+                  _buildInvoiceProofCard(context, ref, order, effectiveProof),
                   const SizedBox(height: 16),
                 ],
 
@@ -450,9 +455,11 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildInvoiceProofCard(BuildContext context, String imagePath) {
+  Widget _buildInvoiceProofCard(BuildContext context, WidgetRef ref, OrderModel order, String imagePath) {
     Widget imageWidget;
     final isLocal = !kIsWeb && File(imagePath).existsSync();
+    final localFallback = ref.watch(tokenStorageProvider).getLocalPodPath(order.docketNo);
+    final hasLocalFallback = localFallback != null && !kIsWeb && File(localFallback).existsSync();
 
     if (isLocal) {
       imageWidget = Image.file(
@@ -476,9 +483,20 @@ class OrderDetailPage extends ConsumerWidget {
             ),
           );
         },
-        errorBuilder: (context, error, stackTrace) => _buildImagePlaceholder(
-          label: 'Proof recorded on server ($imagePath)',
-        ),
+        errorBuilder: (context, error, stackTrace) {
+          if (hasLocalFallback) {
+            return Image.file(
+              File(localFallback),
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, stack) => _buildImagePlaceholder(
+                label: 'Proof recorded on server',
+              ),
+            );
+          }
+          return _buildImagePlaceholder(
+            label: 'Proof recorded on server',
+          );
+        },
       );
     }
 

@@ -21,12 +21,31 @@ class ApiEndpoints {
   static String updateShipmentStatus(dynamic id) => '/delivery-boy/shipments/$id/status';
 
   // Storage / Uploads Base URL
+  static const String siteBaseUrl = 'https://jmdlogisticsolutions.com';
   static const String storageBaseUrl = 'https://jmdlogisticsolutions.com/storage';
+
   static String getStorageUrl(String path) {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
+    final clean = path.trim();
+    if (clean.isEmpty) return '';
+
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return clean;
     }
-    final cleanPath = path.startsWith('/') ? path.substring(1) : path;
-    return '$storageBaseUrl/$cleanPath';
+
+    var normalized = clean.startsWith('/') ? clean.substring(1) : clean;
+
+    if (normalized.startsWith('storage/')) {
+      return '$siteBaseUrl/$normalized';
+    }
+
+    if (normalized.startsWith('public/storage/')) {
+      return '$siteBaseUrl/${normalized.substring('public/'.length)}';
+    }
+
+    if (normalized.startsWith('public/')) {
+      return '$storageBaseUrl/${normalized.substring('public/'.length)}';
+    }
+
+    return '$storageBaseUrl/$normalized';
   }
 }

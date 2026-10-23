@@ -98,11 +98,18 @@ class ApiClient {
       // Check for message { message: "error text" }
       if (data['message'] != null) {
         final msg = data['message'].toString();
+        if (msg == 'Unauthenticated.' || e.response?.statusCode == 401) {
+          return 'Session expired. Please login again.';
+        }
         if (msg == 'Server Error') {
           return 'Server Error (500): Backend controller threw an unhandled exception.';
         }
         return msg;
       }
+    }
+
+    if (e.response?.statusCode == 401) {
+      return 'Session expired. Please login again.';
     }
 
     if (e.response?.statusCode == 500) {

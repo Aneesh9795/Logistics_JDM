@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/storage/token_storage.dart';
 import '../models/order_model.dart';
@@ -27,6 +30,8 @@ class OrdersState {
   final List<OrderModel> orders;
   final bool isLoading;
   final bool isLoadingMore;
+  final bool isSyncing;
+  final bool isOffline;
   final int currentPage;
   final int lastPage;
   final int totalCountFromApi;
@@ -35,11 +40,14 @@ class OrdersState {
   final String searchQuery;
   final bool isTableView;
   final String? errorMessage;
+  final DateTime? lastSyncedAt;
 
   const OrdersState({
     required this.orders,
     this.isLoading = false,
     this.isLoadingMore = false,
+    this.isSyncing = false,
+    this.isOffline = false,
     this.currentPage = 1,
     this.lastPage = 1,
     this.totalCountFromApi = 0,
@@ -53,6 +61,7 @@ class OrdersState {
     this.searchQuery = '',
     this.isTableView = true,
     this.errorMessage,
+    this.lastSyncedAt,
   });
 
   List<OrderModel> get filteredOrders {
@@ -107,6 +116,8 @@ class OrdersState {
     List<OrderModel>? orders,
     bool? isLoading,
     bool? isLoadingMore,
+    bool? isSyncing,
+    bool? isOffline,
     int? currentPage,
     int? lastPage,
     int? totalCountFromApi,
@@ -115,11 +126,14 @@ class OrdersState {
     String? searchQuery,
     bool? isTableView,
     String? errorMessage,
+    DateTime? lastSyncedAt,
   }) {
     return OrdersState(
       orders: orders ?? this.orders,
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isSyncing: isSyncing ?? this.isSyncing,
+      isOffline: isOffline ?? this.isOffline,
       currentPage: currentPage ?? this.currentPage,
       lastPage: lastPage ?? this.lastPage,
       totalCountFromApi: totalCountFromApi ?? this.totalCountFromApi,
@@ -128,16 +142,46 @@ class OrdersState {
       searchQuery: searchQuery ?? this.searchQuery,
       isTableView: isTableView ?? this.isTableView,
       errorMessage: errorMessage,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
     );
   }
 }
 
-class OrdersNotifier extends StateNotifier<OrdersState> {
+class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObserver {
   final OrdersService _ordersService;
   final TokenStorage? _tokenStorage;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  bool _isDisposed = false;
 
   OrdersNotifier(this._ordersService, [this._tokenStorage]) : super(const OrdersState(orders: [])) {
+    WidgetsBinding.instance.addObserver(this);
+    _initConnectivityListener();
     loadOrders();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_isDisposed) {
+      // Single hit only when delivery partner opens/resumes the app
+      silentSync();
+    }
+  }
+
+  void _initConnectivityListener() {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+      if (_isDisposed) return;
+      final isOnline = results.any((r) => r != ConnectivityResult.none);
+      if (isOnline) {
+        if (state.isOffline || state.errorMessage != null) {
+          // Automatic recovery: Reconnected after disconnect -> single reload
+          loadOrders();
+        } else {
+          silentSync();
+        }
+      } else {
+        state = state.copyWith(isOffline: true);
+      }
+    });
   }
 
   List<OrderModel> _enrichWithLocalPod(List<OrderModel> shipments) {
@@ -152,7 +196,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     }).toList();
   }
 
-  /// Initial load from live backend
+  /// Initial full load from live backend
   Future<void> loadOrders() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
@@ -179,14 +223,108 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
         totalCountFromApi: shipmentData.total,
         dashboardCounts: dashboardData,
         isLoading: false,
+        isOffline: false,
         errorMessage: null,
+        lastSyncedAt: DateTime.now(),
       );
     } catch (e) {
+      final errStr = e.toString().toLowerCase();
+      final isNetError = errStr.contains('network') ||
+          errStr.contains('connection') ||
+          errStr.contains('timed out') ||
+          errStr.contains('socket');
+
       state = state.copyWith(
         isLoading: false,
+        isOffline: isNetError,
         errorMessage: e.toString(),
       );
     }
+  }
+
+  /// Silent background sync (no UI flicker or skeleton loaders)
+  Future<void> silentSync() async {
+    if (state.isLoading || state.isSyncing || _isDisposed) return;
+    if (_tokenStorage != null && !_tokenStorage.hasToken()) return;
+
+    state = state.copyWith(isSyncing: true);
+
+    try {
+      final shipmentsFuture = _ordersService.fetchShipments(page: 1);
+      final dashboardFuture = _ordersService.fetchDashboard();
+
+      final results = await Future.wait([shipmentsFuture, dashboardFuture]);
+
+      final shipmentData = results[0] as ({
+        List<OrderModel> shipments,
+        int currentPage,
+        int lastPage,
+        int total
+      });
+      final dashboardData = results[1] as Map<String, int>;
+
+      final enrichedPage1 = _enrichWithLocalPod(shipmentData.shipments);
+
+      // 1. Existing orders lookup
+      final existingMap = {for (final o in state.orders) o.id: o};
+      final page1Ids = enrichedPage1.map((o) => o.id).toSet();
+
+      // 2. Identify brand-new orders created by admin (present in page 1, not in existing state)
+      final newOrders = enrichedPage1.where((o) => !existingMap.containsKey(o.id)).toList();
+
+      // 3. Update status/fields of orders already displayed
+      final updatedExisting = state.orders.map((existingOrder) {
+        if (page1Ids.contains(existingOrder.id)) {
+          return enrichedPage1.firstWhere((o) => o.id == existingOrder.id);
+        }
+        return existingOrder;
+      }).toList();
+
+      // 4. Place new orders at top, preserve any paginated orders below
+      final combined = [...newOrders, ...updatedExisting];
+
+      if (!_isDisposed) {
+        state = state.copyWith(
+          orders: combined,
+          dashboardCounts: dashboardData,
+          totalCountFromApi: shipmentData.total,
+          lastPage: shipmentData.lastPage,
+          isSyncing: false,
+          isOffline: false,
+          errorMessage: null,
+          lastSyncedAt: DateTime.now(),
+        );
+      }
+    } catch (e) {
+      if (!_isDisposed) {
+        final errStr = e.toString().toLowerCase();
+        final isNetError = errStr.contains('network') ||
+            errStr.contains('connection') ||
+            errStr.contains('timed out') ||
+            errStr.contains('socket');
+
+        final isSessionExpired = errStr.contains('session expired') || errStr.contains('unauthenticated');
+        if (isSessionExpired) {
+          state = state.copyWith(
+            isSyncing: false,
+            errorMessage: 'Session expired. Please login again.',
+          );
+        } else {
+          state = state.copyWith(
+            isSyncing: false,
+            isOffline: isNetError ? true : state.isOffline,
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _connectivitySubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   /// Lazy loading / Pagination (load next page with deduplication & pre-emptive trigger)

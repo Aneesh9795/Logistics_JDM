@@ -140,6 +140,33 @@ class HomePage extends ConsumerWidget {
               child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
+                // Offline Notice Banner
+                if (ordersState.isOffline)
+                  SliverToBoxAdapter(
+                    child: Container(
+                      color: const Color(0xFFFFF3CD),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.wifi_off_rounded, size: 16, color: Color(0xFF856404)),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Offline: Showing cached data. Reconnecting...',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF856404)),
+                            ),
+                          ),
+                          if (ordersState.isSyncing)
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF856404)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 // Top Metrics & Search Bar
                 SliverToBoxAdapter(
                   child: Container(
@@ -277,23 +304,57 @@ class HomePage extends ConsumerWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.cloud_off_rounded, size: 56, color: AppColors.brandRed),
+                            Icon(
+                              (ordersState.errorMessage!.toLowerCase().contains('session expired') ||
+                                      ordersState.errorMessage!.toLowerCase().contains('unauthenticated'))
+                                  ? Icons.lock_clock_rounded
+                                  : Icons.cloud_off_rounded,
+                              size: 56,
+                              color: AppColors.brandRed,
+                            ),
                             const SizedBox(height: 12),
                             Text(
-                              ordersState.errorMessage!,
+                              (ordersState.errorMessage!.toLowerCase().contains('session expired') ||
+                                      ordersState.errorMessage!.toLowerCase().contains('unauthenticated'))
+                                  ? 'Session Expired'
+                                  : ordersState.errorMessage!,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                             ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () => ordersVM.refresh(),
-                              icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text('RETRY'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryNavy,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            if (ordersState.errorMessage!.toLowerCase().contains('session expired') ||
+                                ordersState.errorMessage!.toLowerCase().contains('unauthenticated')) ...[
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Your login session is no longer active. Please log in again to continue.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
                               ),
-                            ),
+                              const SizedBox(height: 20),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  ref.read(authProvider.notifier).logout();
+                                  context.go('/login');
+                                },
+                                icon: const Icon(Icons.login_rounded, size: 18),
+                                label: const Text('LOGIN AGAIN'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryNavy,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () => ordersVM.refresh(),
+                                icon: const Icon(Icons.refresh, size: 18),
+                                label: const Text('RETRY'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primaryNavy,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

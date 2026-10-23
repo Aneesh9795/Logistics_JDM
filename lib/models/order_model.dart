@@ -212,7 +212,28 @@ class OrderModel {
       status: OrderStatus.fromString(json['status'] as String?),
       currentLocation: (json['current_location'] ?? '').toString(),
       remarks: json['remarks'] as String?,
-      podFile: (json['pod_file'] ?? json['invoice_image_path']) as String?,
+      podFile: () {
+        final raw = json['pod_file'] ??
+            json['pod_url'] ??
+            json['pod_file_url'] ??
+            json['pod_image'] ??
+            json['pod_image_url'] ??
+            json['pod_path'] ??
+            json['pod'] ??
+            json['proof_of_delivery'] ??
+            json['invoice_image_path'] ??
+            json['invoice_image'] ??
+            json['invoice_file'] ??
+            json['invoice_url'] ??
+            json['invoice'];
+        if (raw == null) return null;
+        if (raw is String) return raw.trim().isNotEmpty ? raw.trim() : null;
+        if (raw is Map) {
+          final url = raw['url'] ?? raw['path'] ?? raw['file'];
+          return url?.toString();
+        }
+        return raw.toString();
+      }(),
       customerName: customerData?['customer_name'] as String? ?? '',
       customerCompany: customerData?['company_name'] as String? ?? '',
       customerMobile: customerData?['mobile'] as String? ?? '',
