@@ -75,13 +75,15 @@ class OrdersService {
 
     if (hasFile) {
       // POD Photo upload with Form-Data via POST (matching backend developer's route)
-      final fileName = podFilePath.split(Platform.pathSeparator).last;
-      final formData = FormData.fromMap({
+      final formDataMap = <String, dynamic>{
         'status': newStatus.label,
         'current_location': loc,
-        'remarks': (remarks != null && remarks.isNotEmpty) ? remarks : 'Delivered successfully',
-        'pod_file': await MultipartFile.fromFile(podFilePath, filename: fileName),
-      });
+        'pod_file': await MultipartFile.fromFile(podFilePath),
+      };
+      if (remarks != null && remarks.trim().isNotEmpty) {
+        formDataMap['remarks'] = remarks.trim();
+      }
+      final formData = FormData.fromMap(formDataMap);
 
       final response = await _apiClient.post(
         ApiEndpoints.updateShipmentStatus(shipmentId),

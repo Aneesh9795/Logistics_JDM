@@ -329,6 +329,10 @@ class OrderDetailPage extends ConsumerWidget {
             _buildDetailRow('S. No.', '${order.sNo}'),
             _buildDetailRow('Docket No.', order.docketNo, isBold: true),
             _buildDetailRow('Brand', order.brand, isTag: true),
+            if (order.description.isNotEmpty)
+              _buildDetailRow('Description', order.description),
+            if (order.remarks != null && order.remarks!.trim().isNotEmpty)
+              _buildDetailRow('Remarks', order.remarks!),
             if (order.customerCompany.isNotEmpty && order.customerCompany != order.brand)
               _buildDetailRow('Company Name', order.customerCompany),
             if (order.customerName.isNotEmpty)

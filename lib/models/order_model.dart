@@ -91,6 +91,7 @@ class OrderModel {
   final String consigneeContact;
   final String weight;
   final String pieces;
+  final String brandName;
   final String description;
   final OrderStatus status;
   final String currentLocation;
@@ -115,6 +116,7 @@ class OrderModel {
     this.consigneeContact = '',
     this.weight = '0.00',
     this.pieces = '1',
+    this.brandName = '',
     this.description = '',
     this.status = OrderStatus.newOrder,
     this.currentLocation = '',
@@ -132,7 +134,7 @@ class OrderModel {
   int get sNo => id;
   String get from => pickupLocation.isNotEmpty ? pickupLocation : 'Main Hub';
   String get to => deliveryLocation.isNotEmpty ? deliveryLocation : fullDeliveryAddress;
-  String get brand => description.isNotEmpty ? description : (customerCompany.isNotEmpty ? customerCompany : 'JMD');
+  String get brand => brandName.isNotEmpty ? brandName : (customerCompany.isNotEmpty ? customerCompany : 'JMD');
   String get noOfBoxes => '$pieces Box';
   String get orderDate => pickupDate.split('T').first;
   String get deliveryDate => expectedDeliveryDate.isNotEmpty ? expectedDeliveryDate.split('T').first : deliveryDateStr.split('T').first;
@@ -150,6 +152,7 @@ class OrderModel {
     String? consigneeContact,
     String? weight,
     String? pieces,
+    String? brandName,
     String? description,
     OrderStatus? status,
     String? currentLocation,
@@ -174,6 +177,7 @@ class OrderModel {
       consigneeContact: consigneeContact ?? this.consigneeContact,
       weight: weight ?? this.weight,
       pieces: pieces ?? this.pieces,
+      brandName: brandName ?? this.brandName,
       description: description ?? this.description,
       status: status ?? this.status,
       currentLocation: currentLocation ?? this.currentLocation,
@@ -208,10 +212,11 @@ class OrderModel {
       consigneeContact: (json['consignee_contact'] ?? '').toString(),
       weight: (json['weight'] ?? '0.00').toString(),
       pieces: (json['pieces'] ?? json['no_of_boxes']?.toString().replaceAll('Box', '').trim() ?? '1').toString(),
-      description: (json['description'] ?? json['brand'] ?? '').toString(),
+      brandName: (json['brand_name'] ?? json['brand'] ?? '').toString().trim(),
+      description: (json['description'] ?? json['item_description'] ?? json['product_description'] ?? '').toString().trim(),
       status: OrderStatus.fromString(json['status'] as String?),
       currentLocation: (json['current_location'] ?? '').toString(),
-      remarks: json['remarks'] as String?,
+      remarks: (json['remarks'] ?? json['remark'] ?? json['instructions'] ?? json['notes'])?.toString().trim(),
       podFile: () {
         final raw = json['pod_file'] ??
             json['pod_url'] ??
@@ -258,6 +263,7 @@ class OrderModel {
       'consignee_contact': consigneeContact,
       'weight': weight,
       'pieces': pieces,
+      'brand': brandName,
       'description': description,
       'status': status.label,
       'current_location': currentLocation,

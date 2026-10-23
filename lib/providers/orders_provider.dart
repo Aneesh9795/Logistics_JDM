@@ -397,7 +397,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
         shipmentId: order.id,
         newStatus: newStatus,
         currentLocation: location ?? (order.deliveryLocation.isNotEmpty ? order.deliveryLocation : 'In Transit'),
-        remarks: remarks ?? 'Status updated to ${newStatus.label}',
+        remarks: remarks ?? order.remarks,
       );
       return (success: true, error: null);
     } catch (e) {
@@ -438,7 +438,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
         shipmentId: order.id,
         newStatus: OrderStatus.delivered,
         currentLocation: order.deliveryLocation.isNotEmpty ? order.deliveryLocation : 'Delivered',
-        remarks: 'Delivered successfully',
+        remarks: order.remarks,
         deliveryDate: DateTime.now().toIso8601String().split('T').first,
         podFilePath: invoiceImagePath,
       );
