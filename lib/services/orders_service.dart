@@ -47,18 +47,58 @@ class OrdersService {
       final response = await _apiClient.get(ApiEndpoints.dashboard);
       if (response is Map<String, dynamic> && response['dashboard'] is Map) {
         final d = response['dashboard'] as Map<String, dynamic>;
+        final outForDeliveryCount = (d['out_for_delivery'] as num?)?.toInt() ??
+            (d['in_transit'] as num?)?.toInt() ??
+            0;
+        final pendingCount = (d['pending'] as num?)?.toInt() ??
+            (d['booked'] as num?)?.toInt() ??
+            0;
+
         return {
           'total': (d['total_shipments'] as num?)?.toInt() ?? 0,
-          'pending': (d['pending'] as num?)?.toInt() ?? 0,
-          'in_transit': (d['in_transit'] as num?)?.toInt() ?? 0,
+          'pending': pendingCount,
+          'out_for_delivery': outForDeliveryCount,
+          'in_transit': outForDeliveryCount, // Backward compatibility
           'delivered': (d['delivered'] as num?)?.toInt() ?? 0,
         };
       }
     } catch (_) {}
-    return {'total': 0, 'pending': 0, 'in_transit': 0, 'delivered': 0};
+    return {
+      'total': 0,
+      'pending': 0,
+      'out_for_delivery': 0,
+      'in_transit': 0,
+      'delivered': 0,
+    };
   }
 
-  /// Update shipment status (Supports multipart POD photo upload via POST and normal status via PATCH JSON)
+  /// Format date helper to guarantee dd-MM-yyyy (e.g. 28-10-2026) as expected by backend API
+  String _normalizeDeliveryDate(String? rawDate) {
+    if (rawDate == null || rawDate.trim().isEmpty) {
+      final now = DateTime.now();
+      final d = now.day.toString().padLeft(2, '0');
+      final m = now.month.toString().padLeft(2, '0');
+      return '$d-$m-${now.year}';
+    }
+    final clean = rawDate.trim().split('T').first;
+    if (clean.contains('-')) {
+      final parts = clean.split('-');
+      if (parts.length == 3) {
+        if (parts[0].length == 4) {
+          // yyyy-MM-dd -> dd-MM-yyyy
+          return '${parts[2].padLeft(2, '0')}-${parts[1].padLeft(2, '0')}-${parts[0]}';
+        } else if (parts[2].length == 4) {
+          // already dd-MM-yyyy
+          return '${parts[0].padLeft(2, '0')}-${parts[1].padLeft(2, '0')}-${parts[2]}';
+        }
+      }
+    }
+    return clean;
+  }
+
+  /// Update shipment status according to backend curl specification:
+  /// POST /delivery-boy/shipments/{id}/status
+  /// multipart/form-data with status, current_location, remarks, delivery_date, and pod_file
   Future<bool> updateShipmentStatus({
     required dynamic shipmentId,
     required OrderStatus newStatus,
@@ -67,65 +107,40 @@ class OrdersService {
     String? deliveryDate,
     String? podFilePath,
   }) async {
-    final loc = (currentLocation != null && currentLocation.isNotEmpty)
-        ? currentLocation
-        : 'In Transit';
+    final loc = (currentLocation != null && currentLocation.trim().isNotEmpty)
+        ? currentLocation.trim()
+        : 'Hub';
 
-    final hasFile = podFilePath != null && podFilePath.isNotEmpty && File(podFilePath).existsSync();
+    final effectiveDate = _normalizeDeliveryDate(deliveryDate);
 
-    if (hasFile) {
-      // POD Photo upload with Form-Data via POST (matching backend developer's route)
-      final formDataMap = <String, dynamic>{
-        'status': newStatus.label,
-        'current_location': loc,
-        'pod_file': await MultipartFile.fromFile(podFilePath),
-      };
-      if (remarks != null && remarks.trim().isNotEmpty) {
-        formDataMap['remarks'] = remarks.trim();
-      }
-      final formData = FormData.fromMap(formDataMap);
+    final formDataMap = <String, dynamic>{
+      'status': newStatus.apiValue, // 'Booked', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED'
+      'current_location': loc,
+      'delivery_date': effectiveDate,
+    };
 
-      final response = await _apiClient.post(
-        ApiEndpoints.updateShipmentStatus(shipmentId),
-        data: formData,
-      );
-
-      if (response is Map && response['success'] == false) {
-        throw response['message']?.toString() ?? 'Status update rejected by server.';
-      }
-      return true;
-    } else {
-      // Normal status update via PATCH JSON
-      final jsonBody = {
-        'status': newStatus.label,
-        'current_location': loc,
-        if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
-        if (deliveryDate != null && deliveryDate.isNotEmpty) 'delivery_date': deliveryDate,
-      };
-
-      try {
-        final response = await _apiClient.patch(
-          ApiEndpoints.updateShipmentStatus(shipmentId),
-          data: jsonBody,
-        );
-
-        if (response is Map && response['success'] == false) {
-          throw response['message']?.toString() ?? 'Status update rejected by server.';
-        }
-        return true;
-      } catch (e) {
-        // Fallback to POST with form-data if backend only accepts POST
-        final formData = FormData.fromMap(jsonBody);
-        final response = await _apiClient.post(
-          ApiEndpoints.updateShipmentStatus(shipmentId),
-          data: formData,
-        );
-        if (response is Map && response['success'] == false) {
-          throw response['message']?.toString() ?? 'Status update rejected by server.';
-        }
-        return true;
-      }
+    if (remarks != null && remarks.trim().isNotEmpty) {
+      formDataMap['remarks'] = remarks.trim();
     }
+
+    if (podFilePath != null && podFilePath.isNotEmpty && File(podFilePath).existsSync()) {
+      formDataMap['pod_file'] = await MultipartFile.fromFile(
+        podFilePath,
+        filename: podFilePath.split(Platform.pathSeparator).last,
+      );
+    }
+
+    final formData = FormData.fromMap(formDataMap);
+
+    final response = await _apiClient.post(
+      ApiEndpoints.updateShipmentStatus(shipmentId),
+      data: formData,
+    );
+
+    if (response is Map && response['success'] == false) {
+      throw response['message']?.toString() ?? 'Status update rejected by server.';
+    }
+    return true;
   }
 }
 

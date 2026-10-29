@@ -32,10 +32,15 @@ class AppColors {
   static const Color statusPickedUpBg = Color(0xFFF5F3FF);
   static const Color statusPickedUpBorder = Color(0xFFDDD6FE);
 
-  // 3. In Transit
-  static const Color statusInTransitText = Color(0xFFB45309);
-  static const Color statusInTransitBg = Color(0xFFFFFBEB);
-  static const Color statusInTransitBorder = Color(0xFFFDE68A);
+  // 3. Out For Delivery (Replaces In Transit)
+  static const Color statusOutForDeliveryText = Color(0xFFB45309);
+  static const Color statusOutForDeliveryBg = Color(0xFFFFFBEB);
+  static const Color statusOutForDeliveryBorder = Color(0xFFFDE68A);
+
+  // Backward-compatible In Transit aliases
+  static const Color statusInTransitText = statusOutForDeliveryText;
+  static const Color statusInTransitBg = statusOutForDeliveryBg;
+  static const Color statusInTransitBorder = statusOutForDeliveryBorder;
 
   // 4. Delivered
   static const Color statusDeliveredText = Color(0xFF15803D);

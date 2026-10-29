@@ -546,12 +546,10 @@ class OrderCard extends StatelessWidget {
 
   IconData _getStatusIcon(OrderStatus status) {
     switch (status) {
-      case OrderStatus.newOrder:
+      case OrderStatus.booked:
         return Icons.bookmark_added_rounded;
-      case OrderStatus.pickedUp:
+      case OrderStatus.outForDelivery:
         return Icons.local_shipping_rounded;
-      case OrderStatus.inTransit:
-        return Icons.route_rounded;
       case OrderStatus.delivered:
         return Icons.verified_rounded;
       case OrderStatus.failed:
@@ -561,12 +559,10 @@ class OrderCard extends StatelessWidget {
 
   String _getStatusDescription(OrderStatus status) {
     switch (status) {
-      case OrderStatus.newOrder:
-        return 'Order registered & waiting for pickup';
-      case OrderStatus.pickedUp:
-        return 'Collected from origin & ready to dispatch';
-      case OrderStatus.inTransit:
-        return 'Shipment on the road to destination';
+      case OrderStatus.booked:
+        return 'Order registered & booked at hub';
+      case OrderStatus.outForDelivery:
+        return 'Package is out for delivery to customer';
       case OrderStatus.delivered:
         return 'Successfully delivered (requires photo proof)';
       case OrderStatus.failed:

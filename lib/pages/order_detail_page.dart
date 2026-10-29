@@ -129,7 +129,7 @@ class OrderDetailPage extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Row(
                   children: [
-                    // FAILED Action Button
+                    // FAILED DELIVERY Action Button
                     Expanded(
                       flex: 1,
                       child: SizedBox(
@@ -145,8 +145,8 @@ class OrderDetailPage extends ConsumerWidget {
                           ),
                           icon: const Icon(Icons.cancel_outlined, size: 20),
                           label: Text(
-                            isFailed ? 'FAILED (EDIT)' : 'FAILED',
-                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                            isFailed ? 'FAILED (EDIT)' : 'FAILED DELIVERY',
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5),
                           ),
                           onPressed: () {
                             FailedReasonSheet.show(context, (reason) async {

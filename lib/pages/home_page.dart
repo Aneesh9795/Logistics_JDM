@@ -188,21 +188,21 @@ class HomePage extends ConsumerWidget {
                             ),
                             const SizedBox(width: 8),
                             _MetricCard(
-                              title: 'Pending',
+                              title: 'Booked',
                               count: ordersState.pendingCount,
-                              color: AppColors.statusInTransitText,
-                              icon: Icons.pending_actions_outlined,
+                              color: AppColors.statusNewText,
+                              icon: Icons.bookmark_added_outlined,
                               isSelected: ordersState.selectedFilter == OrderFilterType.pending,
                               onTap: () => ordersVM.setFilter(OrderFilterType.pending),
                             ),
                             const SizedBox(width: 8),
                             _MetricCard(
-                              title: 'In Transit',
-                              count: ordersState.inTransitCount,
-                              color: AppColors.statusPickedUpText,
+                              title: 'Out For Delivery',
+                              count: ordersState.outForDeliveryCount,
+                              color: AppColors.statusOutForDeliveryText,
                               icon: Icons.local_shipping_outlined,
-                              isSelected: ordersState.selectedFilter == OrderFilterType.inTransit,
-                              onTap: () => ordersVM.setFilter(OrderFilterType.inTransit),
+                              isSelected: ordersState.selectedFilter == OrderFilterType.outForDelivery,
+                              onTap: () => ordersVM.setFilter(OrderFilterType.outForDelivery),
                             ),
                             const SizedBox(width: 8),
                             _MetricCard(
@@ -567,17 +567,17 @@ class HomePage extends ConsumerWidget {
       description = 'No shipments match "${ordersState.searchQuery}". Try a different docket, brand, or branch.';
     } else {
       switch (ordersState.selectedFilter) {
-        case OrderFilterType.inTransit:
-          accentColor = AppColors.statusPickedUpText;
+        case OrderFilterType.outForDelivery:
+          accentColor = AppColors.statusOutForDeliveryText;
           filterIcon = Icons.local_shipping_rounded;
-          title = 'No In-Transit Shipments';
-          description = 'There are no packages currently in transit. All items are either delivered or awaiting dispatch at the hub.';
+          title = 'No Out-For-Delivery Shipments';
+          description = 'There are no packages currently out for delivery. All items are either booked, delivered, or at hub.';
           break;
         case OrderFilterType.pending:
-          accentColor = AppColors.statusInTransitText;
-          filterIcon = Icons.pending_actions_rounded;
-          title = 'No Pending Shipments';
-          description = 'All shipments have been processed. Great job keeping the hub clear!';
+          accentColor = AppColors.statusNewText;
+          filterIcon = Icons.bookmark_added_rounded;
+          title = 'No Booked Shipments';
+          description = 'All shipments have been dispatched or delivered. Great job keeping the hub clear!';
           break;
         case OrderFilterType.delivered:
           accentColor = AppColors.statusDeliveredText;

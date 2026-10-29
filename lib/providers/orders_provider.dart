@@ -9,17 +9,20 @@ import '../services/orders_service.dart';
 enum OrderFilterType {
   total,
   pending,
-  inTransit,
+  outForDelivery,
   delivered;
+
+  // Backward compatibility alias
+  static const OrderFilterType inTransit = OrderFilterType.outForDelivery;
 
   String get label {
     switch (this) {
       case OrderFilterType.total:
         return 'Total';
       case OrderFilterType.pending:
-        return 'Pending';
-      case OrderFilterType.inTransit:
-        return 'In Transit';
+        return 'Booked';
+      case OrderFilterType.outForDelivery:
+        return 'Out For Delivery';
       case OrderFilterType.delivered:
         return 'Delivered';
     }
@@ -54,6 +57,7 @@ class OrdersState {
     this.dashboardCounts = const {
       'total': 0,
       'pending': 0,
+      'out_for_delivery': 0,
       'in_transit': 0,
       'delivered': 0,
     },
@@ -74,10 +78,10 @@ class OrdersState {
         case OrderFilterType.pending:
           matchesFilter = order.status != OrderStatus.delivered &&
               order.status != OrderStatus.failed &&
-              order.status != OrderStatus.inTransit;
+              order.status != OrderStatus.outForDelivery;
           break;
-        case OrderFilterType.inTransit:
-          matchesFilter = order.status == OrderStatus.inTransit;
+        case OrderFilterType.outForDelivery:
+          matchesFilter = order.status == OrderStatus.outForDelivery;
           break;
         case OrderFilterType.delivered:
           matchesFilter = order.status == OrderStatus.delivered;
@@ -108,8 +112,9 @@ class OrdersState {
   // Dashboard Stats Getters
   int get totalCount => dashboardCounts['total'] ?? orders.length;
   int get deliveredCount => dashboardCounts['delivered'] ?? orders.where((o) => o.status == OrderStatus.delivered).length;
-  int get inTransitCount => dashboardCounts['in_transit'] ?? orders.where((o) => o.status == OrderStatus.inTransit).length;
-  int get pendingCount => dashboardCounts['pending'] ?? orders.where((o) => o.status != OrderStatus.delivered && o.status != OrderStatus.failed && o.status != OrderStatus.inTransit).length;
+  int get outForDeliveryCount => dashboardCounts['out_for_delivery'] ?? dashboardCounts['in_transit'] ?? orders.where((o) => o.status == OrderStatus.outForDelivery).length;
+  int get inTransitCount => outForDeliveryCount; // Backwards-compatible alias
+  int get pendingCount => dashboardCounts['pending'] ?? dashboardCounts['booked'] ?? orders.where((o) => o.status != OrderStatus.delivered && o.status != OrderStatus.failed && o.status != OrderStatus.outForDelivery).length;
   int get failedCount => orders.where((o) => o.status == OrderStatus.failed).length;
 
   OrdersState copyWith({
@@ -370,7 +375,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
     state = state.copyWith(isTableView: !state.isTableView);
   }
 
-  /// Live status update (In Transit, Picked Up)
+  /// Live status update (Out For Delivery, Booked, etc.)
   Future<({bool success, String? error})> updateOrderStatus(
     String docketNo,
     OrderStatus newStatus, {
@@ -381,12 +386,17 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
     if (order == null) return (success: false, error: 'Order not found');
 
     final previousOrder = order;
+    final loc = (location != null && location.trim().isNotEmpty)
+        ? location.trim()
+        : (order.deliveryLocation.isNotEmpty
+            ? order.deliveryLocation
+            : (order.pickupLocation.isNotEmpty ? order.pickupLocation : 'Hub'));
 
     // Optimistic UI update
     state = state.copyWith(
       orders: state.orders.map((o) {
         if (o.docketNo == docketNo) {
-          return o.copyWith(status: newStatus, currentLocation: location ?? o.currentLocation);
+          return o.copyWith(status: newStatus, currentLocation: loc);
         }
         return o;
       }).toList(),
@@ -396,8 +406,11 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
       await _ordersService.updateShipmentStatus(
         shipmentId: order.id,
         newStatus: newStatus,
-        currentLocation: location ?? (order.deliveryLocation.isNotEmpty ? order.deliveryLocation : 'In Transit'),
-        remarks: remarks ?? order.remarks,
+        currentLocation: loc,
+        remarks: remarks ??
+            (order.remarks?.isNotEmpty == true
+                ? order.remarks
+                : (newStatus == OrderStatus.outForDelivery ? 'Out for delivery' : 'Status updated')),
       );
       return (success: true, error: null);
     } catch (e) {
@@ -409,15 +422,19 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
     }
   }
 
-  /// Mark Delivered with live POD upload
+  /// Mark Delivered with live POD upload matching curl parameters
   Future<({bool success, String? error})> markOrderDelivered(
     String docketNo, {
     String? invoiceImagePath,
+    String? remarks,
   }) async {
     final order = getOrderByDocketNo(docketNo);
     if (order == null) return (success: false, error: 'Order not found');
 
     final previousOrder = order;
+    final loc = order.deliveryLocation.isNotEmpty
+        ? order.deliveryLocation
+        : (order.fullDeliveryAddress.isNotEmpty ? order.fullDeliveryAddress : 'Delivered');
 
     // Optimistic UI update
     state = state.copyWith(
@@ -427,6 +444,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
             status: OrderStatus.delivered,
             podFile: invoiceImagePath,
             completedAt: DateTime.now(),
+            currentLocation: loc,
           );
         }
         return o;
@@ -437,9 +455,10 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
       await _ordersService.updateShipmentStatus(
         shipmentId: order.id,
         newStatus: OrderStatus.delivered,
-        currentLocation: order.deliveryLocation.isNotEmpty ? order.deliveryLocation : 'Delivered',
-        remarks: order.remarks,
-        deliveryDate: DateTime.now().toIso8601String().split('T').first,
+        currentLocation: loc,
+        remarks: (remarks != null && remarks.trim().isNotEmpty)
+            ? remarks.trim()
+            : (order.remarks?.trim().isNotEmpty == true ? order.remarks! : 'Delivered successfully'),
         podFilePath: invoiceImagePath,
       );
       if (invoiceImagePath != null && invoiceImagePath.isNotEmpty) {
@@ -465,6 +484,9 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
     if (order == null) return (success: false, error: 'Order not found');
 
     final previousOrder = order;
+    final loc = order.deliveryLocation.isNotEmpty
+        ? order.deliveryLocation
+        : (order.pickupLocation.isNotEmpty ? order.pickupLocation : 'Hub');
 
     state = state.copyWith(
       orders: state.orders.map((o) {
@@ -473,6 +495,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
             status: OrderStatus.failed,
             failedReason: reason,
             completedAt: DateTime.now(),
+            currentLocation: loc,
           );
         }
         return o;
@@ -483,6 +506,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> with WidgetsBindingObser
       await _ordersService.updateShipmentStatus(
         shipmentId: order.id,
         newStatus: OrderStatus.failed,
+        currentLocation: loc,
         remarks: reason,
       );
       return (success: true, error: null);

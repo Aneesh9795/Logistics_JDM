@@ -2,20 +2,22 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 
 enum OrderStatus {
-  newOrder,
-  pickedUp,
-  inTransit,
+  booked,
+  outForDelivery,
   delivered,
   failed;
 
+  // Backward compatibility aliases
+  static const OrderStatus newOrder = OrderStatus.booked;
+  static const OrderStatus inTransit = OrderStatus.outForDelivery;
+  static const OrderStatus pickedUp = OrderStatus.outForDelivery;
+
   String get label {
     switch (this) {
-      case OrderStatus.newOrder:
+      case OrderStatus.booked:
         return 'Booked';
-      case OrderStatus.pickedUp:
-        return 'Picked Up';
-      case OrderStatus.inTransit:
-        return 'In Transit';
+      case OrderStatus.outForDelivery:
+        return 'Out For Delivery';
       case OrderStatus.delivered:
         return 'Delivered';
       case OrderStatus.failed:
@@ -23,14 +25,27 @@ enum OrderStatus {
     }
   }
 
+  /// Exact status payload sent to the backend API:
+  /// 'Booked', 'OUT_FOR_DELIVERY', 'DELIVERED', 'FAILED'
+  String get apiValue {
+    switch (this) {
+      case OrderStatus.booked:
+        return 'Booked';
+      case OrderStatus.outForDelivery:
+        return 'OUT_FOR_DELIVERY';
+      case OrderStatus.delivered:
+        return 'DELIVERED';
+      case OrderStatus.failed:
+        return 'FAILED';
+    }
+  }
+
   Color get textColor {
     switch (this) {
-      case OrderStatus.newOrder:
+      case OrderStatus.booked:
         return AppColors.statusNewText;
-      case OrderStatus.pickedUp:
-        return AppColors.statusPickedUpText;
-      case OrderStatus.inTransit:
-        return AppColors.statusInTransitText;
+      case OrderStatus.outForDelivery:
+        return AppColors.statusOutForDeliveryText;
       case OrderStatus.delivered:
         return AppColors.statusDeliveredText;
       case OrderStatus.failed:
@@ -40,12 +55,10 @@ enum OrderStatus {
 
   Color get bgColor {
     switch (this) {
-      case OrderStatus.newOrder:
+      case OrderStatus.booked:
         return AppColors.statusNewBg;
-      case OrderStatus.pickedUp:
-        return AppColors.statusPickedUpBg;
-      case OrderStatus.inTransit:
-        return AppColors.statusInTransitBg;
+      case OrderStatus.outForDelivery:
+        return AppColors.statusOutForDeliveryBg;
       case OrderStatus.delivered:
         return AppColors.statusDeliveredBg;
       case OrderStatus.failed:
@@ -55,12 +68,10 @@ enum OrderStatus {
 
   Color get borderColor {
     switch (this) {
-      case OrderStatus.newOrder:
+      case OrderStatus.booked:
         return AppColors.statusNewBorder;
-      case OrderStatus.pickedUp:
-        return AppColors.statusPickedUpBorder;
-      case OrderStatus.inTransit:
-        return AppColors.statusInTransitBorder;
+      case OrderStatus.outForDelivery:
+        return AppColors.statusOutForDeliveryBorder;
       case OrderStatus.delivered:
         return AppColors.statusDeliveredBorder;
       case OrderStatus.failed:
@@ -69,13 +80,20 @@ enum OrderStatus {
   }
 
   static OrderStatus fromString(String? val) {
-    if (val == null) return OrderStatus.newOrder;
+    if (val == null) return OrderStatus.booked;
     final lower = val.toLowerCase().trim();
     if (lower == 'delivered') return OrderStatus.delivered;
     if (lower == 'failed') return OrderStatus.failed;
-    if (lower == 'in transit' || lower == 'intransit') return OrderStatus.inTransit;
-    if (lower == 'picked up' || lower == 'pickedup') return OrderStatus.pickedUp;
-    return OrderStatus.newOrder;
+    if (lower == 'out_for_delivery' ||
+        lower == 'out for delivery' ||
+        lower == 'outfordelivery' ||
+        lower == 'in transit' ||
+        lower == 'intransit' ||
+        lower == 'picked up' ||
+        lower == 'pickedup') {
+      return OrderStatus.outForDelivery;
+    }
+    return OrderStatus.booked;
   }
 }
 
@@ -118,7 +136,7 @@ class OrderModel {
     this.pieces = '1',
     this.brandName = '',
     this.description = '',
-    this.status = OrderStatus.newOrder,
+    this.status = OrderStatus.booked,
     this.currentLocation = '',
     this.remarks,
     this.podFile,
@@ -265,7 +283,7 @@ class OrderModel {
       'pieces': pieces,
       'brand': brandName,
       'description': description,
-      'status': status.label,
+      'status': status.apiValue,
       'current_location': currentLocation,
       'remarks': remarks,
       'pod_file': podFile,
