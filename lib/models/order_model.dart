@@ -153,7 +153,11 @@ class OrderModel {
   String get from => pickupLocation.isNotEmpty ? pickupLocation : 'Main Hub';
   String get to => deliveryLocation.isNotEmpty ? deliveryLocation : fullDeliveryAddress;
   String get brand => brandName.isNotEmpty ? brandName : (customerCompany.isNotEmpty ? customerCompany : 'JMD');
-  String get noOfBoxes => '$pieces Box';
+  String get noOfBoxes {
+    final clean = pieces.replaceAll(RegExp(r'\s*box(es)?', caseSensitive: false), '').trim();
+    final value = clean.isEmpty ? '1' : clean;
+    return '$value Box';
+  }
   String get orderDate => pickupDate.split('T').first;
   String get deliveryDate => expectedDeliveryDate.isNotEmpty ? expectedDeliveryDate.split('T').first : deliveryDateStr.split('T').first;
   String? get invoiceImagePath => podFile;
@@ -229,7 +233,11 @@ class OrderModel {
       consigneeName: (json['consignee_name'] ?? '').toString(),
       consigneeContact: (json['consignee_contact'] ?? '').toString(),
       weight: (json['weight'] ?? '0.00').toString(),
-      pieces: (json['pieces'] ?? json['no_of_boxes']?.toString().replaceAll('Box', '').trim() ?? '1').toString(),
+      pieces: () {
+        final raw = (json['pieces'] ?? json['no_of_boxes'] ?? '1').toString();
+        final clean = raw.replaceAll(RegExp(r'\s*box(es)?', caseSensitive: false), '').trim();
+        return clean.isEmpty ? '1' : clean;
+      }(),
       brandName: (json['brand_name'] ?? json['brand'] ?? '').toString().trim(),
       description: (json['description'] ?? json['item_description'] ?? json['product_description'] ?? '').toString().trim(),
       status: OrderStatus.fromString(json['status'] as String?),
